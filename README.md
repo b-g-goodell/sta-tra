@@ -1,4 +1,4 @@
-# statistical-trading
+# sta-tra
 Use basic statistical tools to execute buys/sells using Coinbase API. I'm in the midst of refactoring from an older Python2 version of this code that was... less well-planned than I hoped... up to a Python3 version that follows some more organized abstract guidelines.
 
 ## Running in Windows 10
