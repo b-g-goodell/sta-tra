@@ -67,26 +67,6 @@ To compute thresholds, we use the recent price trend and the current `Buy_Q` and
 The trend and its upper/lower bounds are constantly being computed using a statistical significance level, `a=alpha`, and the hourly pricing information published on Coinbase: the goal is to find a `100(1-a/2)%` two-sided confidence interval around a trendline. When new pricing information is published, we determine a `preferred_timescale` that maximizes a normalized signal-to-noise ratio (SNR) for `log(price)`. For each possible timescale, `T` hours (integer), compute the average of the past `T` hours of `log(price)` and call this `average_historical_log_price`. Also compute and the (unbiased) standard deviation of the past `T` hours, `stdev_historical_log_price`, and define the SNR `snr[T] = average_historical_log_price*sqrt(T)/stdev_historical_log_price` and we choose `T` that maximizes this ratio. Then, for the last `T` measurements of `log(price)`, we find the OLS best-fit line, say `log(trend_price) = slope*time + intercept`. Then we hypothesize that deviations from this `trend_price`, say `z_i = abs(log(price(i)) - log(trend_price))` are i.i.d. zero-mean normal random variables (this assumption is false in general, and will be improved eventually). We compute the corresponding `100(1-a/2)%` two-sided confidence interval for the mean. We call the upper and lower bounds of this window `(lower_bound_on_trend, upper_bound_on_trend)`: when we are outside of this interval, our hypothesis that deviations from the price trend are normal with mean zero is rejected, so we make a `buy` or `sell` bet. 
 
 
-#### Future implementations will have more complicated buy/sell strategies. After we have some probabilities estimated, we can start using Kelly betting. Eventually, I would like to develop some neural networks that are trained to respond to time series.
+#### Future implementations 
 
-# Deprecated stuff!
-
-## Objects
-
-### Trader
-
-The Trader object also contains a script. Trader will execute TriggerCalculator in the event that a triggers.dat file is not already in existence; it otherwise assumes that any present triggers.dat file is an up-to-date output from TriggerScript, which should be run once an hour with cron.
-
-It is the engine of this package. It uses a python Coinbase API library and the TimeSeries objects (see below). It enters an infinite loop with a pause between each loop. For each loop, buy and sell prices are pulled from coinbase, compared to the window sizes, and if certain conditions are met, buy (sell) orders are issued.
-
-Future implementations of the Trader object will allow for interactions with othe APIs, i.e. Poloniex. We wish to be able to track many commodities and currencies, and we also wish to be able to issue more complicated orders than simple market buys (sells).
-
-### TimeSeries
-
-We built the TimeSeries object, a fundamentally statistical construction. It is mainly responsible for managing a sequence of ordered pairs of the form (t,y), and outputting various statistics describing that sequence, such as the mean and median of the y-values, and a window of reasonable y-values representing the mean (median) plus or minus some z-score multiple of the standard deviation. The object can also produce a de-trended time-series, in the sense that this object will return the time series with the mean (median) subtracted off.
-
-Future implementations of the TimeSeries object will de-trend data in more sophisticated ways, using best-fit linear, exponential, and trigonometric functions. It will also include Fourier Analysis methods, and possibly more complicated methods from Time Series Analysis, such as SARIMA or GARCH modeling.
-
-### AttitudeGenerator and AttitudeScript
-
-The AttitudeGenerator object specifically takes the Coinbase hourly history and spits out a window of buy-low, sell-high triggers. AttitudeScript runs it.
+We will have more complicated buy/sell strategies. After we have some probabilities estimated, we can start using Kelly betting. Eventually, I would like to develop some neural networks that are trained to respond to time series.
