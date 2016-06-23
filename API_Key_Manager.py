@@ -6,6 +6,7 @@ from Crypto.Cipher import AES
 
 class API_Key_Manager(object):
     def __init__(self):
+        self.self_path = os.path.dirname(os.path.realpath(__file__))
         self.key_manager = {}
         self.this_user = {}
         # self.this_user has keys 'username', 'user_id', 'pwd_salt',
@@ -42,13 +43,13 @@ class API_Key_Manager(object):
         return success, username
             
     def _update_key_manager_file(self):
-        filename = "key_manager.txt"
+        filename = self.self_path  + "/key_manager/key_manager.txt"
         with open(filename, "w") as key_manager_file:
             for username in self.key_manager:
                 newline = username + "\t" + self.key_manager[username]['user_id'] + "\t" + self.key_manager[username]['pwd_salt'] + "\t" + self.key_manager[username]['hashed_pwd']
                 for salt in self.key_manager[username]['aes_key_salts']:
                     newline = newline + "\t" + salt
-                key_manager_file.write(newline)
+                key_manager_file.write(newline + "\n")
         
     def _get_user_id(self, username=None):
         assert username is not None
@@ -58,25 +59,26 @@ class API_Key_Manager(object):
         return user_id
         
     def _open_key_manager(self):
-        filename = "key_manager.txt"
+        filename = self.self_path  + "/key_manager/key_manager.txt"
         if not os.path.isfile(filename):
             open(filename, "w").close()
         with open(filename, "r") as key_manager_file:
             lines = key_manager_file.readlines()
             if len(lines) != 0:
                 for line in lines:
-                    line.rstrip()
-                    line = line.split("\t")
-                    username = line[0]
-                    user_id = self._get_user_id(username)
-                    assert user_id == line[1]
-                    
-                    self.key_manager[username] = {}
-                    self.key_manager[username]['user_id'] = user_id
-                    self.key_manager[username]['pwd_salt'] = line[2]
-                    self.key_manager[username]['hashed_pwd'] = line[3]
-                    self.key_manager[username]['aes_key_salts'] = line[4:]
-        
+                    if len(line) != 0:
+                        line.rstrip()
+                        line = line.split("\t")
+                        username = line[0]
+                        user_id = self._get_user_id(username)
+                        assert user_id == line[1]
+                        
+                        self.key_manager[username] = {}
+                        self.key_manager[username]['user_id'] = user_id
+                        self.key_manager[username]['pwd_salt'] = line[2]
+                        self.key_manager[username]['hashed_pwd'] = line[3]
+                        self.key_manager[username]['aes_key_salts'] = line[4:]
+            
     def _encrypted_file_and_pwd_to_api_keys(self, username):
         success = None
         black_box = AESCrypt()
@@ -92,13 +94,13 @@ class API_Key_Manager(object):
             hpwd = base64.b64encode(black_box.hash_passphrase(pwd, self.this_user['pwd_salt'], bits_to_read=32))
         if success:
             api_keys = []
-            for salt in aes_key_salts:
+            for salt in self.key_manager[username]['aes_key_salts']:
                 salt_code = salt
                 user_id_code = ''.join([i for i in user_id_code if i.isalpha()])
                 user_id_code = user_id_code[:4]
                 salt_code = ''.join([i for i in salt_code if i.isalpha()])
                 salt_code = salt_code[:4]
-                filename = user_id_code + "." + salt_code + "." + str(aes_key_salts.index(salt)) + ".txt"
+                filename = self.self_path + "/key_manager/" +  user_id_code + "." + salt_code + "." + str(self.key_manager[username]['aes_key_salts'].index(salt)) + ".txt"
                 with open(filename, "r") as aes_file:
                     encrypted_data = aes_file.read()
                     api_keys.append(black_box.passphrase_decrypt(base64.b64decode(encrypted_data), pwd, base64.b64decode(salt)))
@@ -148,8 +150,8 @@ class API_Key_Manager(object):
             encrypted_data = [base64.b64encode(black_box.passphrase_encrypt(plaintext_one, pwd, salt_one)), base64.b64encode(black_box.passphrase_encrypt(plaintext_two, pwd, salt_two))]
              
             filenames = [None, None]
-            filenames[0] = user_id_code + "." + salt_codes[0] + ".0.txt"
-            filenames[1] = user_id_code + "." + salt_codes[1] + ".1.txt"
+            filenames[0] = self.self_path + "/key_manager/" + user_id_code + "." + salt_codes[0] + ".0.txt"
+            filenames[1] = self.self_path + "/key_manager/" + user_id_code + "." + salt_codes[1] + ".1.txt"
             #if not os.path.isfile(filenames[0]):
             #    open(filenames[0], "w").close()
             with open(filenames[0], "w") as temp_file:
