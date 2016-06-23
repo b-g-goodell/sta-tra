@@ -162,12 +162,12 @@ class API_Key_Manager(object):
         return success
         
 
-class Test_API_Key_Manager(unittest.TestCase):
-    def test_api_key_manager(self):
-        abed = API_Key_Manager()
-        abed.login()
-        api_keys = abed.get_api_keys()
-        print api_keys
+#class Test_API_Key_Manager(unittest.TestCase):
+#    def test_api_key_manager(self):
+#        abed = API_Key_Manager()
+#        abed.login()
+#        api_keys = abed.get_api_keys()
+#        print api_keys
         
-suite = unittest.TestLoader().loadTestsFromTestCase(Test_API_Key_Manager)
-unittest.TextTestRunner(verbosity=1).run(suite)
+#suite = unittest.TestLoader().loadTestsFromTestCase(Test_API_Key_Manager)
+#unittest.TextTestRunner(verbosity=1).run(suite)
