@@ -30,19 +30,19 @@ class AESCrypt(object):
         message = self._unpad((cipher.decrypt(ciphertext[self.iv_length:])).decode('utf-8'))
         return message
         
-    def passphrase_encrypt(self, message, passphrase, salt, mode=AES.MODE_CFB):
+    def passphrase_encrypt(self, message, passphrase, salt, bits_to_read=32, mode=AES.MODE_CFB):
         assert salt != None
-        key = PBKDF2(passphrase, salt).read(32)
-        return self.encrypt(message,key,mode), salt
+        key = self.hash_passphrase(passphrase, salt, bits_to_read)
+        return self.encrypt(message,key,mode)
         
-    def passphrase_decrypt(self,ciphertext,passphrase,salt,mode=AES.MODE_CFB):
+    def passphrase_decrypt(self,ciphertext,passphrase,salt, bits_to_read=32, mode=AES.MODE_CFB):
         assert salt != None
-        key = PBKDF2(passphrase, salt).read(32)
-        return self.decrypt(ciphertext, key, mode), salt
+        key = self.hash_passphrase(passphrase, salt, bits_to_read)
+        return self.decrypt(ciphertext, key, mode)
         
-    def hash_passphrase(self, passphrase, salt):
+    def hash_passphrase(self, passphrase, salt, bits_to_read=32):
         assert salt != None
-        key = PBKDF2(passphrase, salt).read(32)
+        key = PBKDF2(passphrase, salt).read(bits_to_read)
         return key
         
 
@@ -52,10 +52,8 @@ class Test_AESCrypt(unittest.TestCase):
         plaintext = "hello world"
         secret_password = "secret password"
         salt = os.urandom(black_box.salt_length)
-        ciphertext, new_salt = black_box.passphrase_encrypt(plaintext, secret_password, salt, mode=AES.MODE_CFB)
-        self.assertTrue(new_salt == salt)
-        alleged_plaintext, newest_salt = black_box.passphrase_decrypt(ciphertext, secret_password, new_salt, mode=AES.MODE_CFB)
-        self.assertTrue(newest_salt == new_salt)
+        ciphertext = black_box.passphrase_encrypt(plaintext, secret_password, salt, bits_to_read=32, mode=AES.MODE_CFB)
+        alleged_plaintext = black_box.passphrase_decrypt(ciphertext, secret_password, salt, bits_to_read=32, mode=AES.MODE_CFB)
         print "plaintext:\t", plaintext
         print "alleged plaintext:\t", alleged_plaintext
         self.assertTrue(plaintext == alleged_plaintext)
