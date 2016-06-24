@@ -12,26 +12,21 @@ This has entirely been developed in Ubuntu (precise and trusty usually) so I hav
 I have had some success with unity, but I primarily use xfce. To start using crouton on your Chromebook: after entering developer mode and downloading crouton, I use:
 
         sudo sh ~/Downloads/crouton -r trusty -t xfce,xiwi,extension,chrome
+        sudo start xfce4
         
 Make sure you are up to date with this:
 
         sudo sh ~/Downloads/crouton -n trusty -u
         
-It just seems like trusty tahr works better on my chromebook than precise pangolin. Install the dependencies (see next section). According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
+Despite that it seems like trusty tahr works better on my chromebook than precise pangolin, and xfce is the only version I've gotten to work so far, it's still quite janky/iffy using ctrl-alt-shift-forward/back to switch operating systems. Install the dependencies (see next section). According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
 
         sudo gedit /etc/rc.local
 
-and add the line `exec cron` before the line `exit 0:` which will get cron running. But user level process don't work, so to add jobs, apparently we need to add them to cron at the root level. Thus we can edit `/etc/crontab` directly rather than using `crontab -e`. This can represent certain problems when updating your version of Ubuntu. Alternatively, we can use `/etc/cron.d` to avoid problems with updating Ubuntu.
+and add the line `exec cron` before the line `exit 0:` which will get cron running. Dnschneid says user level process don't work, so to add jobs we need to add them to cron at the root level, `/etc/crontab`. But using
 
-I don't like vim:
+        EDITOR=/usr/bin/gedit crontab -e
 
-        export EDITOR=/usr/bin/gedit
-
-So now we just go 
-
-        /etc/crontab -e 
-
-Since we have to use `/etc/crontab` or `/etc/cron.d` instead of `crontab -e`, we have to specify users for each cron job in addition to timing and commands.  Let's say we want to run Oracle.py on the second minute of every hour, and we want to run Trader.py at the start of every minute of every hour. I'll run them as root because I can. Add the following two lines to the bottom of your crontab file:
+followed by `sudo cron` got things going for me. I add the following two lines to the bottom of my crontab file:
 
         1 * * * * root cd /path/to/scripts && python Oracle.py
         * * * * * root cd /path/to/scripts && python Trader.py
