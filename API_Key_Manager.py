@@ -6,6 +6,7 @@ from Crypto.Cipher import AES
 
 class API_Key_Manager(object):
     def __init__(self):
+        
         self.self_path = os.path.dirname(os.path.realpath(__file__))
         self.max_count = 5 # Max number of failed login attempts before login fails
         
