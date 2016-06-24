@@ -11,6 +11,7 @@ class AESCrypt(object):
         self.iv_length=16
         self.salt_length=8
         self.self_path = os.path.dirname(os.path.realpath(__file__))
+        
     def _pad(self, s):
         pad_val = self.blocksize - len(s) % self.blocksize
         return s + pad_val*chr(pad_val)
