@@ -12,6 +12,7 @@ This has entirely been developed in Ubuntu (precise and trusty usually) so I hav
 Recently my chromebook has been acting up, and Crouton hasn't been working very well. The following are failures (included here so I know what isn't working):
 
         sudo sh ~/Downloads/crouton -r trusty -t unity,xiwi,extension,chrome
+        sudo sh ~/Downloads/crouton -r trusty -t unity-desktop,xiwi,chrome
         
 I believe the `extension` target didn't work for whatever reason. I had strange graphics issues and the book wouldn't ctrl-alt-shift-arrow back to Chrome.
 
@@ -19,8 +20,7 @@ I believe the `extension` target didn't work for whatever reason. I had strange 
 
 To start using crouton on your Chromebook: after entering developer mode and downloading crouton, I use one of the two:
 
-        sudo sh ~/Downloads/crouton -r trusty -t unity-desktop,xiwi,chrome
-        sudo sh ~/Downloads/crouton -r trusty -t unity,xiwi,extension,chrome
+        sudo sh ~/Downloads/crouton -r trusty -t xfce,xiwi,extension,chrome
         
 Make sure you are up to date with this:
 
