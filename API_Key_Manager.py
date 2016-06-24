@@ -7,12 +7,30 @@ from Crypto.Cipher import AES
 class API_Key_Manager(object):
     def __init__(self):
         self.self_path = os.path.dirname(os.path.realpath(__file__))
-        self.key_manager = {}
-        self.this_user = {}
-        # self.this_user has keys 'username', 'user_id', 'pwd_salt',
-        # 'hashed_pwd', and 'api_keys'
+        self.max_count = 5 # Max number of failed login attempts before login fails
+        
+        self.key_manager = {} # Dictionary with all users info
+        # self.key_manager has keys = usernames
+        # Each self.key_manager[username] is a dictionary with key-value pairs:
+        # self.key_manager[username]['user_id']      : user_id = hash of username
+        # self.key_manager[username]['pwd_salt']     : salt for hashing password
+        # self.key_manager[username]['hashed_pwd']   : resulting hashed password
+        # self.key_manager[username]['pwd_salt']     : salt for hashing password
+        # self.key_manager[username]['aes_key_salts']: salts for encryption
+        
+        self.this_user = {} # Dictionary with info for the user who has successfully logged in.
+        # self.this_user has key-value pairs:
+        # 'username'      : username 
+        # 'user_id'       : user_id = hash of username 
+        # 'pwd_salt'      : salt for hashing password
+        # 'hashed_pwd'    : resulting hashed password 
+        # 'aes_key_salts' : salts for encryption 
+        # 'api_keys'      : the whole name of the game
         
     def get_api_keys(self):
+        ''' The whole machinery leveraged to retun a user's API keys 
+        after successful login.
+        '''
         success, username = self.login()
         result = None
         if success:
@@ -20,6 +38,11 @@ class API_Key_Manager(object):
         return result
         
     def login(self, username = None):
+        ''' Basic login method. Prompt for username. If username already 
+        exists, call _encrypted_file_and_pwd_to_api_keys. If a username
+        does not already exist, call _pwd_and_api_keys_to_encrypted_file
+        which will register the new user.
+        '''
         success = None
         if username is None:
             username = raw_input("user:\t")
@@ -43,6 +66,8 @@ class API_Key_Manager(object):
         return success, username
             
     def _update_key_manager_file(self):
+        ''' Write current key_manager dictionary to file.
+        '''
         filename = self.self_path  + "/key_manager/key_manager.txt"
         with open(filename, "w") as key_manager_file:
             for username in self.key_manager:
@@ -52,6 +77,8 @@ class API_Key_Manager(object):
                 key_manager_file.write(newline + "\n")
         
     def _get_user_id(self, username=None):
+        ''' Hash the user id with zero salt for filename purposes 
+        '''
         assert username is not None
         black_box = AESCrypt()
         user_id_salt = "00000000000="
@@ -59,6 +86,12 @@ class API_Key_Manager(object):
         return user_id
         
     def _open_key_manager(self):
+        ''' Load the key_manager.txt file which has all user info.
+        Data in the key_manager.txt file will be separated by lines and
+        tabs.
+        Within a line, we will have data of the form
+        username \t user_id \t pwd_salt \t hashed_pwd \t aes_key_salt_1 \t aes_key_salt_2 ... \t aes_key_salt_N \n
+        '''
         filename = self.self_path  + "/key_manager/key_manager.txt"
         if not os.path.isfile(filename):
             open(filename, "w").close()
@@ -78,11 +111,24 @@ class API_Key_Manager(object):
                         self.key_manager[username]['pwd_salt'] = line[2]
                         self.key_manager[username]['hashed_pwd'] = line[3]
                         self.key_manager[username]['aes_key_salts'] = line[4:]
+                        
+    def _get_code(self, s):
+        ''' This method takes a string, removes all non-alpha-numeric 
+        characters, and returns the first four characters. 
+        For filename generation; use with hashes of user information
+        to generate unique(-ish) filenames.
+        '''
+        s = ''.join([x for x in s if x.isalpha()])
+        return s[:4]
             
     def _encrypted_file_and_pwd_to_api_keys(self, username):
+        ''' In this method, we already have an encrypted files on record
+        and we prompt the user for a password. We use the password to 
+        decrypt the encrypted files.
+        '''
         success = None
         black_box = AESCrypt()
-        user_id_code = self.this_user['user_id']
+        user_id_code = self._get_code(self.this_user['user_id'])
         aes_key_salts = self.this_user['aes_key_salts']
         pwd = raw_input("password:\t")
         hpwd = base64.b64encode(black_box.hash_passphrase(pwd, self.this_user['pwd_salt'], bits_to_read=32))
@@ -95,11 +141,7 @@ class API_Key_Manager(object):
         if success:
             api_keys = []
             for salt in self.key_manager[username]['aes_key_salts']:
-                salt_code = salt
-                user_id_code = ''.join([i for i in user_id_code if i.isalpha()])
-                user_id_code = user_id_code[:4]
-                salt_code = ''.join([i for i in salt_code if i.isalpha()])
-                salt_code = salt_code[:4]
+                salt_code = self._get_code(salt)
                 filename = self.self_path + "/key_manager/" +  user_id_code + "." + salt_code + "." + str(self.key_manager[username]['aes_key_salts'].index(salt)) + ".txt"
                 with open(filename, "r") as aes_file:
                     encrypted_data = aes_file.read()
@@ -108,6 +150,10 @@ class API_Key_Manager(object):
         return success
         
     def _pwd_and_api_keys_to_encrypted_file(self, username=None, api_keys = [None, None]):
+        ''' In this method, we do not have any encrypted files on record 
+        yet. So we ask a user for their password and their API keys and 
+        we create a new encrypted file with the API keys inside.
+        '''
         success = None
         black_box = AESCrypt()
         if username is not None:
@@ -130,28 +176,26 @@ class API_Key_Manager(object):
             self.this_user['hashed_pwd'] = base64.b64encode(black_box.hash_passphrase(pwd, self.this_user['pwd_salt'], bits_to_read=32))
             self.key_manager[username]['hashed_pwd'] = self.this_user['hashed_pwd']
             
-            user_id_code = self.this_user['user_id']
-            user_id_code = ''.join([i for i in user_id_code if i.isalpha()])
-            user_id_code = user_id_code[:4]
+            user_id_code = self._get_code(self.this_user['user_id'])
+            salt_codes = [self._get_code( \
+                self.this_user['aes_key_salts'][0]),  \
+                self._get_code(self.this_user['aes_key_salts'][1])]
             
-            salt_codes = [None,None]
-            salt_codes[0] = self.this_user['aes_key_salts'][0]
-            salt_codes[0] = ''.join([i for i in salt_codes[0] if i.isalpha()])
-            salt_codes[0] = salt_codes[0][:4]
-            salt_codes[1] = self.this_user['aes_key_salts'][1]
-            salt_codes[1] = ''.join([i for i in salt_codes[1] if i.isalpha()])
-            salt_codes[1] = salt_codes[1][:4]
-            
-            plaintext_one = self.this_user['api_keys'][0]
             salt_one = base64.b64decode(self.this_user['aes_key_salts'][0])
-            plaintext_two = self.this_user['api_keys'][1]
             salt_two = base64.b64decode(self.this_user['aes_key_salts'][1])
+            plaintext_one = self.this_user['api_keys'][0]
+            plaintext_two = self.this_user['api_keys'][1]
             
-            encrypted_data = [base64.b64encode(black_box.passphrase_encrypt(plaintext_one, pwd, salt_one)), base64.b64encode(black_box.passphrase_encrypt(plaintext_two, pwd, salt_two))]
+            encrypted_data = [base64.b64encode(\
+                black_box.passphrase_encrypt(\
+                plaintext_one, pwd, salt_one)), base64.b64encode(\
+                black_box.passphrase_encrypt(\
+                plaintext_two, pwd, salt_two))]
              
-            filenames = [None, None]
-            filenames[0] = self.self_path + "/key_manager/" + user_id_code + "." + salt_codes[0] + ".0.txt"
-            filenames[1] = self.self_path + "/key_manager/" + user_id_code + "." + salt_codes[1] + ".1.txt"
+            filenames = [self.self_path + "/key_manager/" + \
+                user_id_code + "." + salt_codes[0] + ".0.txt",\
+                self.self_path + "/key_manager/" + user_id_code +\
+                "." + salt_codes[1] + ".1.txt"]
             #if not os.path.isfile(filenames[0]):
             #    open(filenames[0], "w").close()
             with open(filenames[0], "w") as temp_file:
@@ -162,12 +206,12 @@ class API_Key_Manager(object):
         return success
         
 
-#class Test_API_Key_Manager(unittest.TestCase):
-#    def test_api_key_manager(self):
-#        abed = API_Key_Manager()
-#        abed.login()
-#        api_keys = abed.get_api_keys()
-#        print api_keys
+class Test_API_Key_Manager(unittest.TestCase):
+    def test_api_key_manager(self):
+        abed = API_Key_Manager()
+        abed.login()
+        api_keys = abed.get_api_keys()
+        print api_keys
         
-#suite = unittest.TestLoader().loadTestsFromTestCase(Test_API_Key_Manager)
-#unittest.TextTestRunner(verbosity=1).run(suite)
+suite = unittest.TestLoader().loadTestsFromTestCase(Test_API_Key_Manager)
+unittest.TextTestRunner(verbosity=1).run(suite)
