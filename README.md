@@ -7,10 +7,24 @@ This has entirely been developed in Ubuntu (precise and trusty usually) so I hav
 
 ## Running with Crouton
 
+### Installations of crouton that have failed
+
+Recently my chromebook has been acting up, and Crouton hasn't been working very well. The following are failures (included here so I know what isn't working):
+
+        sudo sh ~/Downloads/crouton -r trusty -t unity,xiwi,extension,chrome
+        
+I believe the `extension` target didn't work for whatever reason. I had strange graphics issues and the book wouldn't ctrl-alt-shift-arrow back to Chrome.
+
+### To successfully install crouton:
+
 To start using crouton on your Chromebook: after entering developer mode and downloading crouton, I use one of the two:
 
-        sudo sh ~/Downloads/crouton -r trusty -t unity-desktop,xiwi,extension,chrome
+        sudo sh ~/Downloads/crouton -r trusty -t unity-desktop,xiwi,chrome
         sudo sh ~/Downloads/crouton -r trusty -t unity,xiwi,extension,chrome
+        
+Make sure you are up to date with this:
+
+        sudo sh ~/Downloads/crouton -n trusty -u
         
 It just seems like trusty tahr works better on my chromebook than precise pangolin, and I like unity, sue me. Install the dependencies (see next section). According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
 
