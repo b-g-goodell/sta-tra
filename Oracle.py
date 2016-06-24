@@ -25,18 +25,15 @@ class Oracle(object):
         self._write_prediction(pred)
         
     def _write_prediction(self, pred):
-        with open(self.triggger_filename, "w") as temp_file:
+        with open(self.trigger_filename, "w") as temp_file:
             width = pred[0]
             t_mean = pred[1]
             y_mean = pred[2]
             slope = pred[3]
             resids = pred[4]
-            this_time = time.time()
-            lower_price = math.exp((y_mean + slope*(this_time - t_mean))-width)
-            upper_price = math.exp((y_mean + slope*(this_time - t_mean))+width)
-                
-            temp_file.write(lower_price, "\t", upper_price)
-            time.sleep(2)
+            line = str(width) + "\t" + str(t_mean) + "\t" + str(y_mean) + "\t" + str(slope)
+            temp_file.write(line)
+            
                 
         
     def pull_data(self,number_hours=168):
@@ -77,6 +74,7 @@ class Oracle(object):
                     best_snr = next_snr
                     pref_length = i
                     print "Best snr so far is ", best_snr, " with preferred sample size ", pref_length
+                print "Best snr so far comes with sample_size ", pref_length, " checking sample_size = ", (i+1), " next."
             self.sample_size = pref_length # Number of hours, sample size...
         print "We've determined we should use ", self.sample_size, " hours worth of samples."
         self.pull_data(number_hours=self.sample_size)
@@ -166,19 +164,19 @@ class Oracle(object):
         
 
 ollie = Oracle()
-count = 0
-while count < 500:
-    count += 1
-    prediction = ollie.get_prediction()
-    width = prediction[0]
-    t_mean = prediction[1]
-    y_mean = prediction[2]
-    slope = prediction[3]
-    resids = prediction[4]
-    this_time = time.time()
-    lower_price = math.exp((y_mean + slope*(this_time - t_mean))-width)
-    upper_price = math.exp((y_mean + slope*(this_time - t_mean))+width)
+#count = 0
+#while count < 500:
+#    count += 1
+#    prediction = ollie.get_prediction()
+#    width = prediction[0]
+#    t_mean = prediction[1]
+#    y_mean = prediction[2]
+#    slope = prediction[3]
+#    resids = prediction[4]
+#    this_time = time.time()
+#    lower_price = math.exp((y_mean + slope*(this_time - t_mean))-width)
+#    upper_price = math.exp((y_mean + slope*(this_time - t_mean))+width)
         
-    print "Window: ", [lower_price, upper_price]
-    time.sleep(2)
+#    print "Window: ", [lower_price, upper_price]
+#    time.sleep(2)
 
