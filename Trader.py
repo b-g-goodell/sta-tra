@@ -1,4 +1,4 @@
 import os
 import time
 
-pass
+print "Hello world"
