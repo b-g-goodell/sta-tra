@@ -1,30 +1,40 @@
 # sta-tra
 Use basic statistical tools to execute buys/sells using Coinbase API. I'm in the midst of refactoring from an older Python2 version of this code that was... less well-planned than I hoped... up to a Python3 version that follows some more organized abstract guidelines.
 
-## Running in Windows 10
+## Running with Windows 10
 
 This has entirely been developed in Ubuntu (precise and trusty usually) so I have no idea how well it will port to windows. I also am under the impression that numpy and scipy are both a pain in the ass with Windows. So, I dunno, dual boot yourself some Ubuntu or use some Crouton for this.
 
-## Running Crouton
+## Running with Crouton
 
-After entering developer mode and downloading crouton, use 
+To start using crouton on your Chromebook: after entering developer mode and downloading crouton, I use one of the two:
 
-        sudo sh ~/Downloads/crouton -t unity-desktop -r trusty
+        sudo sh ~/Downloads/crouton -r trusty -t unity-desktop,xiwi,extension,chrome
+        sudo sh ~/Downloads/crouton -r trusty -t unity,xiwi,extension,chrome
         
-Install the dependencies below. Install the a browser (we use chrome).For *cron*, according to dnschneid we "edit /etc/rc.local and add the following line before exit 0:"
+It just seems like trusty tahr works better on my chromebook than precise pangolin, and I like unity, sue me. Install the dependencies (see next section). According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
 
-        exec cron
+        sudo gedit /etc/rc.local
+
+and add the line `exec cron` before the line `exit 0:` which will get cron running. But user level process don't work, so to add jobs, apparently we need to add them to cron at the root level. Thus we can edit `/etc/crontab` directly rather than using `crontab -e`. This can represent certain problems when updating your version of Ubuntu. Alternatively, we can use `/etc/cron.d` to avoid problems with updating Ubuntu.
+
+I don't like vim:
+
+        export EDITOR=/usr/bin/gedit
+
+So now we just go 
+
+        /etc/crontab -e 
+
+Since we have to use `/etc/crontab` or `/etc/cron.d` instead of `crontab -e`, we have to specify users for each cron job in addition to timing and commands.  Let's say we want to run Oracle.py on the second minute of every hour, and we want to run Trader.py at the start of every minute of every hour. I'll run them as root because I can. Add the following two lines to the bottom of your crontab file:
+
+        1 * * * * root cd /path/to/scripts && python Oracle.py
+        * * * * * root cd /path/to/scripts && python Trader.py
         
-dnschneid: "This will start the cron process as root for the system. Being the case, any cron jobs added at the user level will not work (ie anything added using the command crontab -e). For this reason you will have to add crons to the /etc/crontab file." I don't like vim and I'm too lazy to change the default editor to gedit, so I use
+Or something similar as a user process:
 
-        EDITOR=/usr/bin/gedit crontab -e
-
-Since we need historical prices pulled every T minutes (say once an hour, with `pull_historical_data.py` ) and we need to execute a script watching live price for action triggers every t seconds (say every minute, with `watch_for_triggers.py` ), we would use in cron:
-
-        1 * * * * /path/to/scripts python pull_historical_data.py
-        * * * * * /path/to/scripts python watch_for_triggers.py
-        
-Or something similar.
+        @hourly user cd /home/user/sta-tra && python Oracle.py
+        * * * * * user cd /home/user/sta-tra && python Trader.py
 
 ### Dependencies
 
@@ -33,15 +43,10 @@ We use the coinbase python library, the json library, the requests library, and 
 What's worked for me is to use the following:
 
         sudo apt-get install python-scipy
-        
         sudo apt-get install python-numpy
-        
         sudo apt-get install python-pip
-        
         sudo apt-get install libffi-dev libssl-dev
-        
         sudo pip install pyopenssl ndg-httpsclient pyasn1
-        
         sudo pip install coinbase
 
 ## Mechanics
