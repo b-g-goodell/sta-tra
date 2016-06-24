@@ -21,6 +21,23 @@ class Oracle(object):
         self.data['price_data'] = None
         self.sample_size = None
         self._find_good_sample_size()
+        pred = self.get_prediction()
+        self._write_prediction(pred)
+        
+    def _write_prediction(self, pred):
+        with open(self.triggger_filename, "w") as temp_file:
+            width = pred[0]
+            t_mean = pred[1]
+            y_mean = pred[2]
+            slope = pred[3]
+            resids = pred[4]
+            this_time = time.time()
+            lower_price = math.exp((y_mean + slope*(this_time - t_mean))-width)
+            upper_price = math.exp((y_mean + slope*(this_time - t_mean))+width)
+                
+            temp_file.write(lower_price, "\t", upper_price)
+            time.sleep(2)
+                
         
     def pull_data(self,number_hours=168):
         ''' Pull hourly pricing data from coinbase '''
@@ -134,40 +151,33 @@ class Oracle(object):
         variance = sum(squared_deviations)/(sample_size - 1)
         return variance**0.5
         
-    def _get_window_width(self):
+    def get_prediction(self):
         #self._find_good_sample_size()
         result = self._get_linear_trend(number_hours = self.sample_size)
         noise = result[3]
         sample_mean_of_noise = self._get_mean(noise)
         sample_stdv_of_noise = self._get_stdev(noise)
         df = self.sample_size - 1
-        t_score = t.ppf(self.alpha/2.0, df)
+        t_score = -1.0*t.ppf(self.alpha/2.0, df)
         k = sample_stdv_of_noise/(self.sample_size**0.5)
         print sample_mean_of_noise - k*t_score, sample_mean_of_noise + k*t_score
         #assert sample_mean_of_noise - k*t_score < 0.0 and sample_mean_of_noise + k*t_score > 0.0
-        return k*t_score, result[0], result[1], result[2], result[3]
-        
-    def predict(self):
-        result = self._get_window_width()
-        prediction_parameters = {}
-        prediction_parameters['width'] = result[0]
-        prediction_parameters['t-mean'] = result[1]
-        prediction_parameters['y-mean'] = result[2]
-        prediction_parameters['slope'] = result[3]
-        prediction_parameters['residuals'] = result[4]
-        
-        return prediction_parameters
-        
+        return (k*t_score, result[0], result[1], result[2], result[3])
         
 
 ollie = Oracle()
 count = 0
 while count < 500:
     count += 1
-    prediction = ollie.predict()
+    prediction = ollie.get_prediction()
+    width = prediction[0]
+    t_mean = prediction[1]
+    y_mean = prediction[2]
+    slope = prediction[3]
+    resids = prediction[4]
     this_time = time.time()
-    lower_price = math.exp((prediction['y-mean'] + prediction['slope']*(this_time-prediction['t-mean']))-prediction['width'])
-    upper_price = math.exp((prediction['y-mean'] + prediction['slope']*(this_time-prediction['t-mean']))+prediction['width'])
+    lower_price = math.exp((y_mean + slope*(this_time - t_mean))-width)
+    upper_price = math.exp((y_mean + slope*(this_time - t_mean))+width)
         
     print "Window: ", [lower_price, upper_price]
     time.sleep(2)
