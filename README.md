@@ -18,7 +18,7 @@ Make sure you are up to date with this:
 
         sudo sh ~/Downloads/crouton -n trusty -u
         
-Despite that it seems like trusty tahr works better on my chromebook than precise pangolin, and xfce is the only version I've gotten to work so far, it's still quite janky/iffy using ctrl-alt-shift-forward/back to switch operating systems. Install the dependencies (see next section). According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
+Despite that it seems like trusty tahr works better on my chromebook than precise pangolin, and xfce is the only version I've gotten to work so far, it's still quite janky/iffy using ctrl-alt-shift-forward/back to switch operating systems. Now to get cron working.... According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
 
         sudo gedit /etc/rc.local
 
@@ -36,6 +36,8 @@ Or something similar as a user process:
         @hourly user cd /home/user/sta-tra && python Oracle.py
         * * * * * user cd /home/user/sta-tra && python Trader.py
 
+Lastly, add the dependencies (see below).
+
 ### Dependencies
 
 We use the coinbase python library, the json library, the requests library, and both numpy and scipy.
@@ -49,6 +51,7 @@ What's worked for me is to use the following:
         sudo apt-get install libffi-dev libssl-dev
         sudo pip install pyopenssl ndg-httpsclient pyasn1
         sudo pip install coinbase
+        sudo pip install pbkdf2
 
 ## Mechanics
 
