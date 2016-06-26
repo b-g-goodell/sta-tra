@@ -2,6 +2,7 @@ import unittest
 import time, datetime
 import os
 import json
+from collections import deque
 from coinbase.wallet.client import Client
 from API_Key_Manager import API_Key_Manager
 
@@ -11,7 +12,145 @@ class Trader(object):
 		self.user_preferences = {}
 		self.wallet = None
 		self.api_url = "https://api.coinbase.com/v2/"
+		self.trigger_filename = self.self_path + "/data/triggers.dat"
+		self.unmatched_buys = self.self_path + "/data/unmatched_buys."
+		self.unmatched_sells = self.self_path + "/data/unmatched_sells."
+		self.lag_time = 1.0 # float, seconds
+		self.max_runs = 45 # int, number of runs.
+		self.Buy_Q = deque()
+		self.Sell_Q = deque()
+		self._user_login()
+		self.start_trader()
+		self.triggers = {}
+		self.triggers['buy'] = None
+		self.triggers['sell'] = None
+		self.state = None
 		pass
+		
+	def start_trader(self):
+		assert self.wallet is not None
+		with open(self.trigger_filename, "r") as trigger_file:
+			trigger_parameters = trigger_file.read()
+		[width, t_mean, log_y_mean, slope] = [float(x) for x in trigger_parameters.rstrip().split()]
+		self._load_unmatched()
+		count = 0
+		while count < self.max_runs:
+			count += 1
+			this_time = time.time()
+			self._set_triggers(t_mean, y_mean, slope, this_time)
+			try:
+				quoted_buy_price = self.wallet.get_buy_price().amount
+				quoted_sell_price  = self.wallet.get_sell_price().amount
+			except:
+				print "Something went wrong pulling current price. Proceeding anyway."
+				continue
+			effective_buy_price = float(self.wallet.get_buy_price().amount)*1.01 # Coinbase has 1% fees
+			effective_sell_price = float(self.wallet.get_sell_price().amount)/1.01	# Coinbase has 1 fees
+
+			print "\n------Price Report------\n"
+			print "Buy price : ", effective_buy_price, "\n"
+			print "Sell price : ", effective_sell_price, "\n"
+
+			if effective_buy_price < self.triggers['buy']:
+				self._make_buy(quoted_buy_price)
+			elif effective_sell_price > self.triggers['sell']:
+				self._make_sell(quoted_sell_price)
+			
+			#self.load_unmatched()
+			next_time = time.time()
+			if next_time - this_time < self.lag_time:
+				time.sleep(next_time - this_time)
+
+	def _get_btc_amt_to_sell(self):
+		bankroll = self.user_preferences['commodity_bankroll']
+		return float(self.attitude['leeway']*self.bankroll['BTC']*(1.0-1.0/self.attitude['upward']))
+	def _get_usd_amt_to_spend(self):
+		return float(self.attitude['leeway']*self.bankroll['USD']*(1.0-self.attitude['downward']))
+		
+	def _make_buy(self, quoted_price):
+		
+		
+	def execute_buy(self, goal_price):
+		print "Executing buy!"
+		result = None
+		usd_amt = self._get_usd_amt_to_spend()
+		assert goal_price > 0.0, "Error, goal price is nonpositive"
+		btc_amt = usd_amt/goal_price
+		print "USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
+		assert usd_amt > 1.0, "Error, tried to buy only " + str(usd_amt) + " in USD..."
+		b = self.coinbase_client.buy(self.commodity_account.id, total=usd_amt, commit='false', currency = self.currency_account.currency, payment_method=self.currency_account.id)
+		actual_price = None
+		try:
+			actual_price = float(float(b.subtotal.amount)/float(b.amount.amount))
+		except:
+			print "Oops! The actual buy price does not match the goal buy price!"
+		if actual_price != None and abs(actual_price - goal_price) < 0.5:
+			b = self.coinbase_client.commit_buy(self.commodity_account.id, b.id)
+			self.bankroll['BTC'] += float(b.amount.amount)
+			self.bankroll['USD'] -= float(b.total.amount)
+			result = {}
+			result['amount'] = float(b.amount.amount)
+			result['cost_basis'] = float(b.total.amount)/float(b.amount.amount)
+			result['created_at'] = b.created_at
+			result['type'] = 'buy'
+		if result != None:
+			log_file = open(self.log_filename, "w")
+			for item in b:
+				log_file.write(str(item) + ", " + str(b[item]))
+			log_file.close()
+		return result
+		
+	def execute_sell(self, goal_price):
+		print "Executing sell!"
+		result = None
+		btc_amt = self._get_btc_amt_to_sell()
+		usd_amt = goal_price * btc_amt
+		print "USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
+		assert usd_amt > 1.0, "Error, tried to sell only " + str(usd_amt) + " in USD..."
+		s = self.coinbase_client.sell(self.commodity_account.id, total=btc_amt, commit='false', currency = self.commodity_account.currency, payment_method=self.currency_account.id)
+		actual_price = None
+		try:
+			actual_price = float(float(s.subtotal.amount)/float(s.amount.amount))
+		except:
+			print "Oops! The actual buy price does not match the goal buy price!"
+		if actual_price != None and abs(actual_price - goal_price) < 0.5:
+			s = self.coinbase_client.commit_sell(self.commodity_account.id, s.id)
+			self.bankroll['BTC'] += float(s.amount.amount)
+			self.bankroll['USD'] -= float(s.total.amount)
+			result = {}
+			result['amount'] = float(s.amount.amount)
+			result['cost_basis'] = float(s.total.amount)/float(s.amount.amount)
+			result['created_at'] = s.created_at
+			result['type'] = 'sell'
+		if result != None:
+			log_file = open(self.log_filename, "w")
+			for item in s:
+				log_file.write(str(item) + ", " + str(s[item]))
+			log_file.close()
+		return result
+
+		pass
+	def _make_sell(self, quoted_price):
+		pass
+		
+	def _load_unmatched(self):
+		pass
+
+	def _set_triggers(self, t_mean, y_mean, slope, this_time):
+		lower_trend_price = math.exp((y_mean + slope*(this_time - t_mean))-width)
+		upper_trend_price = math.exp((y_mean + slope*(this_time - t_mean))+width)
+		lower_pairing_price = self._get_lowest_buy_price()*self.user_preferences['change_trigger']
+		upper_pairing_price = self._get_lowest_buy_price()/self.user_preferences['change_trigger']
+		self.triggers['buy'] = max(lower_trend_price, lower_pairing_price)
+		self.triggers['sell'] = min(upper_trend_price, upper_pairing_price)
+	
+		
+	def _load_unmatched(self):
+		with open(self.unmatched_buys, "r") as umb_file:
+			umb = umb_file.readlines()
+		with open(self.unmatched_sells, "r") as ums_file:
+			ums = ums_file.readlines()
+		pass	
 		
 	def _user_login(self):
 		alfred = API_Key_Manager()
@@ -115,17 +254,17 @@ class Trader(object):
 		#print self.user_preferences
 		with open(self.user_preferences['filename'],"w") as port_file:
 			lines = []
-			line = "change_trigger \t " + str(self.user_preferences['change_trigger']) + " \n"
+			line = "change_trigger\t" + str(self.user_preferences['change_trigger']) + "\n"
 			lines.append(line)
-			line = "percentile \t " + str(self.user_preferences['percentile']) + " \n"
+			line = "percentile\t" + str(self.user_preferences['percentile']) + "\n"
 			lines.append(line)
-			line = "commodity_acct \t " + str(self.user_preferences['commodity_acct'].id) + " \n"
+			line = "commodity_acct\t" + str(self.user_preferences['commodity_acct'].id) + "\n"
 			lines.append(line)
-			line = "currency_acct \t " + str(self.user_preferences['currency_acct'].id) + " \n"
+			line = "currency_acct\t" + str(self.user_preferences['currency_acct'].id) + "\n"
 			lines.append(line)
-			line = "currency_br \t " + str(self.user_preferences['currency_bankroll']) + " \n"
+			line = "currency_br\t" + str(self.user_preferences['currency_bankroll']) + "\n"
 			lines.append(line)
-			line = "commodity_br \t " + str(self.user_preferences['commodity_bankroll']) + " \n"
+			line = "commodity_br\t" + str(self.user_preferences['commodity_bankroll']) + "\n"
 			lines.append(line)
 			for line in lines:
 				port_file.write(line)
