@@ -26,12 +26,13 @@ class Oracle(object):
         
     def _write_prediction(self, pred):
         with open(self.trigger_filename, "w") as temp_file:
-            width = pred[0]
-            t_mean = pred[1]
-            y_mean = pred[2]
-            slope = pred[3]
-            resids = pred[4]
-            line = str(width) + "\t" + str(t_mean) + "\t" + str(y_mean) + "\t" + str(slope)
+            k = pred[0]
+            sample_size = pred[1]
+            t_mean = pred[2]
+            y_mean = pred[3]
+            slope = pred[4]
+            resids = pred[5]
+            line = str(k) + "\t" + str(sample_size) + "\t" + str(t_mean) + "\t" + str(y_mean) + "\t" + str(slope)
             temp_file.write(line)
             
                 
@@ -155,28 +156,12 @@ class Oracle(object):
         noise = result[3]
         sample_mean_of_noise = self._get_mean(noise)
         sample_stdv_of_noise = self._get_stdev(noise)
-        df = self.sample_size - 1
-        t_score = -1.0*t.ppf(self.alpha/2.0, df)
+        #df = self.sample_size - 1
+        #t_score = -1.0*t.ppf(self.alpha/2.0, df)
         k = sample_stdv_of_noise/(self.sample_size**0.5)
-        print sample_mean_of_noise - k*t_score, sample_mean_of_noise + k*t_score
+        #print sample_mean_of_noise - k*t_score, sample_mean_of_noise + k*t_score
         #assert sample_mean_of_noise - k*t_score < 0.0 and sample_mean_of_noise + k*t_score > 0.0
-        return (k*t_score, result[0], result[1], result[2], result[3])
+        return (k, self.sample_size, result[0], result[1], result[2], result[3])
         
 
 ollie = Oracle()
-#count = 0
-#while count < 500:
-#    count += 1
-#    prediction = ollie.get_prediction()
-#    width = prediction[0]
-#    t_mean = prediction[1]
-#    y_mean = prediction[2]
-#    slope = prediction[3]
-#    resids = prediction[4]
-#    this_time = time.time()
-#    lower_price = math.exp((y_mean + slope*(this_time - t_mean))-width)
-#    upper_price = math.exp((y_mean + slope*(this_time - t_mean))+width)
-        
-#    print "Window: ", [lower_price, upper_price]
-#    time.sleep(2)
-
