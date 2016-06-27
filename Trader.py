@@ -24,6 +24,10 @@ class Trader(object):
 		self.buy_q = deque()
 		self.sell_q = deque()
 		self.max_runs = 45
+		self.triggers = {}
+		self.triggers['buy'] = None
+		self.triggers['sell'] = None
+		self.lag_time = 1
 		pass
 		 
 	def start_trader(self):
@@ -57,8 +61,8 @@ class Trader(object):
 			effective_sell_price = float(self.wallet.get_sell_price().amount)/1.01	# Coinbase has 1 fees
 
 			print "\n------Price Report------\n"
-			print "Buy price : ", effective_buy_price, "\n"
-			print "Sell price : ", effective_sell_price, "\n"
+			print "Buy price : ", effective_buy_price, ", buy_trigger : ", self.triggers['buy'], "\n"
+			print "Sell price : ", effective_sell_price, ", sell_trigger : ", self.triggers['sell'], "\n"
 
 			action_taken = False
 			if effective_buy_price < self.triggers['buy']:
@@ -246,18 +250,16 @@ class Trader(object):
 		# For each this_price in buy_q, if current_price>this_price*self.user_preferences['change_trigger'], we want to make a sale.
 		# For each this_price in sell_q, if current_price < this_price/self.user_preferences['change_trigger'], we want to make a buy.
 		this_time = time.time()
+		pairing_buy_trigs = None
+		pairing_sell_trigs = None
 		
 		prices_in_buy_q = [x['price']*self.user_preferences['change_trigger'] for x in self.buy_q]
 		prices_in_sell_q = [x['price']/self.user_preferences['change_trigger'] for x in self.sell_q]
 		
 		if len(prices_in_buy_q) > 0:
 			pairing_sell_trigs = min(prices_in_buy_q)
-		else:
-			pairing_sell_trigs = None
 		if len(prices_in_sell_q) > 0:
 			pairing_buy_trigs = max(prices_in_sell_q)
-		else:
-			pariting_buy_trigs = None
 		
 		with open(self.trigger_filename, "r") as trigger_file:
 			trigger_parameters = trigger_file.read()
