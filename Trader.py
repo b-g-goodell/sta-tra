@@ -43,7 +43,8 @@ class Trader(object):
 		self._load_unmatched()
 		
 		count = 0
-		while count < self.max_runs:
+		#while count < self.max_runs:
+		while True:
 			# Repeat self.max_runs times
 			count += 1
 			# Measure time at start of each loop
@@ -79,7 +80,7 @@ class Trader(object):
 			# Measure how long all that took and delay an appropriate
 			# amount of time before moving onto next loop.
 			next_time = time.time()
-			print next_time, this_time
+			print next_time- this_time
 			if next_time - this_time < self.lag_time:
 				time.sleep(next_time - this_time)
 
@@ -289,7 +290,7 @@ class Trader(object):
 		print "Executing buy!"
 		result = None
 		btc_amt = usd_amt/quoted_price
-		print "USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
+		print "USD Amt: ", amount_in_usd, " BTC Amt: ", btc_amt, "\n"
 		assert usd_amt > 1.0, "Error, tried to buy only " + str(usd_amt) + " in USD..."
 		b = self.wallet.buy(self.user_preferences['commodity_account'].id, total=amount_in_usd, commit='false', currency = self.user_preferences['currency_account'].currency, payment_method=self.user_preferences['currency_account'].id)
 		actual_price = None
@@ -325,7 +326,7 @@ class Trader(object):
 		print "Executing sell!"
 		result = None
 		usd_amt = quoted_price*amount_in_btc
-		print "USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
+		print "USD Amt: ", quoted_price*amount_in_btc, " BTC Amt: ", amount_in_btc, "\n"
 		assert usd_amt > 1.0, "Error, tried to sell only " + str(usd_amt) + " in USD..."
 		s = self.wallet.sell(self.user_preferences['commodity_account'].id, total=btc_amt, commit='false', currency = self.user_preferences['commodity_account'].currency, payment_method=self.user_preferences['currency_account'].id)
 		actual_price = None
