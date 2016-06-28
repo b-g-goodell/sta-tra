@@ -18,26 +18,22 @@ Make sure you are up to date with this:
 
         sudo sh ~/Downloads/crouton -n trusty -u
         
-Despite that it seems like trusty tahr works better on my chromebook than precise pangolin, and xfce is the only version I've gotten to work so far, it's still quite janky/iffy using ctrl-alt-shift-forward/back to switch operating systems. Now to get cron working.... According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
+Despite that it seems like trusty tahr works better on my chromebook than precise pangolin, and xfce is the only version I've gotten to work so far, it's still quite janky/iffy using ctrl-alt-shift-forward/back to switch operating systems. 
+
+### Running Oracle.py with cron 
+
+Now to get cron working.... According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
 
         sudo gedit /etc/rc.local
 
-and add the line `exec cron` before the line `exit 0:` which will get cron running. Dnschneid says user level process don't work, so to add jobs we need to add them to cron at the root level, `/etc/crontab`. But using
+and add the line `exec cron` before the line `exit 0:` which will get cron running. Dnschneid says user level process don't work, so to add jobs we need to add them to cron at the root level. I use the command
 
-        EDITOR=/usr/bin/gedit crontab -e
+        sudo gedit /etc/crontab
 
-followed by `sudo cron` got things going for me. I add the following two lines to the bottom of my crontab file:
+and add the following line to the bottom of my crontab file:
 
-        1 * * * * root cd /path/to/scripts && python Oracle.py
-        * * * * * root cd /path/to/scripts && python Trader.py
+        1 * * * * root /usr/bin/python /path/to/scripts/Oracle.py
         
-Or something similar as a user process:
-
-        @hourly user cd /home/user/sta-tra && python Oracle.py
-        * * * * * user cd /home/user/sta-tra && python Trader.py
-
-Lastly, add the dependencies (see below).
-
 ### Dependencies
 
 We use the coinbase python library, the json library, the requests library, and both numpy and scipy.
