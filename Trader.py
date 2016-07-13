@@ -28,6 +28,7 @@ class Trader(object):
 		self.triggers['buy'] = None
 		self.triggers['sell'] = None
 		self.lag_time = 1
+		
 		pass
 		 
 	def start_trader(self):
@@ -49,6 +50,7 @@ class Trader(object):
 			count += 1
 			# Measure time at start of each loop
 			this_time = time.time()
+			#print this_time
 			# Compute buy and sell triggers
 			self._compute_trigger_window()
 			
@@ -58,8 +60,9 @@ class Trader(object):
 			except:
 				print "Something went wrong pulling current price. Proceeding anyway."
 				continue
-			effective_buy_price = float(self.wallet.get_buy_price().amount)*1.01 # Coinbase has 1% fees
-			effective_sell_price = float(self.wallet.get_sell_price().amount)/1.01	# Coinbase has 1 fees
+			
+			effective_buy_price = float(quoted_buy_price)*1.01 # Coinbase has 1% fees
+			effective_sell_price = float(quoted_sell_price)/1.01	# Coinbase has 1 fees
 
 			print "\n------Price Report------\n"
 			print "Eff. Buy price : ", effective_buy_price, ", buy_trigger : ", self.triggers['buy'], "\n"
@@ -271,7 +274,7 @@ class Trader(object):
 		
 		# If the current sell price is bigger than the smallest of the older buy prices,
 		# then we can sell for profit
-		prices_in_buy_q = [x['cost_basis']*(1.0+self.user_preferences['change_trigger']) for x in self.buy_q]
+		prices_in_buy_q = [float(x['cost_basis'])*(1.0+self.user_preferences['change_trigger']) for x in self.buy_q]
 		#print "==============="
 		#print "Buy queue report:"
 		#print self.buy_q
@@ -291,16 +294,22 @@ class Trader(object):
 		if len(prices_in_sell_q) > 0:
 			pairing_buy_trigs = max(prices_in_sell_q)
 		
-		with open(self.trigger_filename, "r") as trigger_file:
-			trigger_parameters = trigger_file.read()
-			
-		[self.k, self.sample_size, self.t_mean, self.y_mean, \
-			self.slope] = [float(x) for x in trigger_parameters.rstrip(\
-			).split()]
+	
+		should_pull_data = (self.k is None) or \
+			(self.sample_size is None) or \
+			(self.y_mean is None) or \
+			(self.slope is None) or \
+			(int(this_time) % 180 == 0)
+		if should_pull_data:
+			with open(self.trigger_filename, "r") as trigger_file:
+				trigger_parameters = trigger_file.read()			
+				[self.k, self.sample_size, self.t_mean, self.y_mean, \
+					self.slope] = [float(x) for x in trigger_parameters.rstrip(\
+					).split()]
 		
-		alpha = 2.0*(1.0-self.user_preferences['percentile'])
+		alpha = (1.0-self.user_preferences['percentile'])/2.0
 		df = self.sample_size - 1
-		t_score = -1.0*students_t.ppf(alpha/2.0, df)
+		t_score = -1.0*students_t.ppf(alpha, df)
         
 		trend_buy_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))-self.k*t_score)
 		trend_sell_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))+self.k*t_score)
