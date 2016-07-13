@@ -62,14 +62,18 @@ class Trader(object):
 			effective_sell_price = float(self.wallet.get_sell_price().amount)/1.01	# Coinbase has 1 fees
 
 			print "\n------Price Report------\n"
-			print "Buy price : ", effective_buy_price, ", buy_trigger : ", self.triggers['buy'], "\n"
-			print "Sell price : ", effective_sell_price, ", sell_trigger : ", self.triggers['sell'], "\n"
+			print "Eff. Buy price : ", effective_buy_price, ", buy_trigger : ", self.triggers['buy'], "\n"
+			print "Eff. Sell price : ", effective_sell_price, ", sell_trigger : ", self.triggers['sell'], "\n"
 
 			action_taken = False
 			if effective_buy_price < self.triggers['buy']:
+				old_len = len(self.buy_q)
 				action_taken = self._make_buy(quoted_buy_price)
+				assert len(self.buy_q) - old_len > 0
 			elif effective_sell_price > self.triggers['sell']:
+				old_len = len(self.sell_q)
 				action_taken = self._make_sell(quoted_sell_price)
+				assert len(self.sell_q) - old_len > 0
 			if action_taken:
 				self._make_pairs()
 				self._update_records()
@@ -103,10 +107,10 @@ class Trader(object):
 	
 	def _set_user_preferences(self):
 		print "=============="
-		print "It appears that we don't have any user preferences on file for you. Please answer the following questions before we proceed:"
+		print "It appears that we don't have any user preferences on file for you. Please answer the following questions before we proceed: "
 		print "=============="
-		self.user_preferences['change_trigger'] = float(raw_input("This code works by taking action after the price changes a certain percentage. What percent would you like as a trigger? Please enter a number between 0.0 and 1.0:"))
-		self.user_preferences['percentile'] = float(raw_input("This code also works using \% confidence intervals: the higher your desired \% confidence, the fewer actions you will take. Please enter a number between 0.0 and 1.0 signifiying your \% confidence (suggested: higher than 0.95 or 0.975)"))
+		self.user_preferences['change_trigger'] = float(raw_input("This code works by taking action after the price changes a certain percentage. What percent would you like as a trigger? Please enter a number between 0.0 and 1.0. For example, if you want to take action every time the price changes by 5%, you would enter 0.05.  "))
+		self.user_preferences['percentile'] = float(raw_input("This code also works using % confidence intervals: the higher your desired % confidence, the fewer actions you will take. Please enter a number between 0.0 and 1.0 signifiying your % confidence (suggested: higher than 0.95 or 0.975)  " ))
 		assert self.wallet is not None
 
 		accounts = self.wallet.get_accounts().data
@@ -236,16 +240,27 @@ class Trader(object):
 						self._add_action(line)
 				
 	def _add_action(self, line):
+		#print line
 		new_action = {}
-		new_action['amount'] = line[0]
-		new_action['cost_basis'] = float(line[1].rstrip())
-		new_action['created_at'] = line[2]
-		new_action['type'] = line[3] 
-		assert line[3] == line[-1]
-		if line[-1] == 'buy':
+		for entry in line:
+			entry = entry.split(",")
+			new_action[entry[0]] = entry[1]
+		#print new_action.keys()
+		if new_action['type'] == 'buy':
 			self.buy_q.append(new_action)
-		elif line[0] == 'sell':
+		elif new_action['type'] == 'sell':
 			self.sell_q.append(new_action)
+			#print entry
+			#print entry[0]
+		#new_action = {}
+		#for entry in line:
+		#	new_action[entry[0]] = entry[1]
+		#print new_action.keys()
+		#if new_action['type'] == 'buy':
+		#	self.buy_q.append(new_action)
+		#elif new_action['type'] == 'sell':
+		#	self.sell_q.append(new_action)
+			
 				
 	def _compute_trigger_window(self):
 		# For each this_price in buy_q, if current_price>this_price*self.user_preferences['change_trigger'], we want to make a sale.
@@ -254,9 +269,23 @@ class Trader(object):
 		pairing_buy_trigs = None
 		pairing_sell_trigs = None
 		
-		prices_in_buy_q = [x['price']*self.user_preferences['change_trigger'] for x in self.buy_q]
-		prices_in_sell_q = [x['price']/self.user_preferences['change_trigger'] for x in self.sell_q]
+		# If the current sell price is bigger than the smallest of the older buy prices,
+		# then we can sell for profit
+		prices_in_buy_q = [x['cost_basis']*(1.0+self.user_preferences['change_trigger']) for x in self.buy_q]
+		#print "==============="
+		#print "Buy queue report:"
+		#print self.buy_q
+		#print "==============="
 		
+		
+		# If the current buy price is lower than the largest of the older sell prices,
+		# then we can buy btc for cheaper than we sold it.
+		prices_in_sell_q = [float(x['cost_basis'])/(1.0+self.user_preferences['change_trigger']) for x in self.sell_q]
+		#print "==============="
+		#print "Sell queue report:"
+		#print self.sell_q
+		#print "==============="
+				
 		if len(prices_in_buy_q) > 0:
 			pairing_sell_trigs = min(prices_in_buy_q)
 		if len(prices_in_sell_q) > 0:
@@ -292,14 +321,14 @@ class Trader(object):
 		btc_amt = usd_amt/quoted_price
 		print "USD Amt: ", amount_in_usd, " BTC Amt: ", btc_amt, "\n"
 		assert usd_amt > 1.0, "Error, tried to buy only " + str(usd_amt) + " in USD..."
-		b = self.wallet.buy(self.user_preferences['commodity_account'].id, total=amount_in_usd, commit='false', currency = self.user_preferences['currency_account'].currency, payment_method=self.user_preferences['currency_account'].id)
+		b = self.wallet.buy(self.user_preferences['commodity_acct'].id, total=amount_in_usd, commit='false', currency = self.user_preferences['commodity_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
 		actual_price = None
 		try:
 			actual_price = float(float(b.total.amount)/float(b.amount.amount))
 		except:
 			print "Oops! Couldn't compute actual price!"
 		result = False
-		if actual_price != None and abs(actual_price - goal_price) < 0.5:
+		if actual_price is not None and abs(actual_price - quoted_price) < 0.5:
 			result = True
 			try:
 				b = self.wallet.commit_buy(self.commodity_account.id, b.id)
@@ -314,11 +343,12 @@ class Trader(object):
 			resulting_buy['cost_basis'] = float(b.total.amount)/float(b.amount.amount)
 			resulting_buy['created_at'] = b.created_at
 			resulting_buy['type'] = 'buy'
-			log_file = open(self.log_filename, "w")
-			for item in b:
-				log_file.write(str(item) + ", " + str(b[item]))
-			log_file.close()
+			print "Length of buy_Q:", len(self.buy_q)
 			self.buy_q.append(resulting_buy)
+			print "Length of buy_Q: ", len(self.buy_q)
+			with open(self.log_filename, "w") as log_file:
+				for item in b:
+					log_file.write(str(item) + ", " + str(b[item]))
 		return result
 
 	def _make_sell(self, quoted_price):
@@ -328,33 +358,36 @@ class Trader(object):
 		usd_amt = quoted_price*amount_in_btc
 		print "USD Amt: ", quoted_price*amount_in_btc, " BTC Amt: ", amount_in_btc, "\n"
 		assert usd_amt > 1.0, "Error, tried to sell only " + str(usd_amt) + " in USD..."
-		s = self.wallet.sell(self.user_preferences['commodity_account'].id, total=btc_amt, commit='false', currency = self.user_preferences['commodity_account'].currency, payment_method=self.user_preferences['currency_account'].id)
+		
+		s = self.wallet.sell(self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
 		actual_price = None
 		try:
 			actual_price = float(float(s.total.amount)/float(s.amount.amount))
 		except:
 			print "Oops! Could not compute actual price"
 		result = False
-		if actual_price != None and abs(actual_price - goal_price) < 0.5:
+		if actual_price is not None and abs(actual_price - quoted_price) < 0.5:
 			result = True
 			try:
-				s = self.wallet.commit_sell(self.user_preferences['commodity_account'].id, s.id)
+				s = self.wallet.commit_sell(self.user_preferences['commodity_acct'].id, s.id)
 			except:
 				result = False
 				#continue
 			if result:
-				self.bankroll['BTC'] -= float(s.amount.amount)
-				self.bankroll['USD'] += 0.999*float(s.total.amount)
+				self.user_preferences['commodity_bankroll'] -= float(s.amount.amount)
+				self.user_preferences['currency_bankroll'] += 0.999*float(s.total.amount)
 				resulting_sell = {}
 				resulting_sell['amount'] = float(s.amount.amount)
 				resulting_sell['cost_basis'] = float(s.total.amount)/float(s.amount.amount)
 				resulting_sell['created_at'] = s.created_at
 				resulting_sell['type'] = 'sell'
-				log_file = open(self.log_filename, "w")
-				for item in s:
-					log_file.write(str(item) + ", " + str(s[item]))
-				log_file.close()
+				print "Length of sell_Q: ", len(self.sell_q)
 				self.sell_q.append(resulting_sell)
+				print "Length of sell_Q: ", len(self.sell_q)
+				with open(self.log_filename, "w") as log_file:
+					for item in s:
+						log_file.write(str(item) + ", " + str(s[item]))
+				
 		return result
 		
 	def _make_pairs(self):
@@ -376,10 +409,13 @@ class Trader(object):
 					else:
 						self.sell_q.appendleft(change)
 						this_buy = None
+			self.sell_q = temp_sell_q
 			if this_buy is not None:
 				temp_buy_q.append(this_buy)
 		self.buy_q = temp_buy_q
-		self.sell_q = temp_sell_q
+		print self.buy_q
+		print self.sell_q
+		#self.sell_q = temp_sell_q
 		
 	def _pair(self, action_1, action_2):
 		change = {}
@@ -408,13 +444,13 @@ class Trader(object):
 			for buy in self.buy_q:
 				newline = ""
 				for key in buy:
-					newline += str(buy[key]) + "\t"
+					newline += key + "," + str(buy[key]) + "\t"
 				newline += "\n"
 				unmatched_file.write(newline)
 			for sell in self.sell_q:
 				newline = ""
 				for key in sell:
-					newline += str(sell[key]) + "\t"
+					newline += key + "," + str(sell[key]) + "\t"
 				newline += "\n"
 				unmatched_file.write(newline)
 		pass
