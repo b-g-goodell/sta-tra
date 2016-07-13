@@ -40,18 +40,14 @@ We use the coinbase python library, the json library, the requests library, and 
 
 What's worked for me is to use the following:
 
-        sudo apt-get install git
-        sudo apt-get install python-scipy
-        sudo apt-get install python-numpy
-        sudo apt-get install python-pip
-        sudo apt-get install libffi-dev libssl-dev
-        sudo pip install pyopenssl ndg-httpsclient pyasn1
-        sudo pip install coinbase
-        sudo pip install pbkdf2
+        sudo apt-get install git python-scipy python-numpy python-pip libffi-dev libssl-dev
+        sudo pip install pyopenssl ndg-httpsclient pyasn1 coinbase pbkdf2
+
+Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
 
 ## Mechanics
 
-This section describes how the refactored code will work. Older versions are different.
+This section describes how the refactored code works.
 
 ### Password management, logging in, encryption:
 
@@ -61,25 +57,29 @@ A file, `key_manager.txt`, with user login info will be kept for encryption purp
 
 If the username does not exist in the directory, a password is registered to them, the program prompts the user for API keys, generates salt for encrypting each key, and uses the password to encrypt those keys with the appropriate salt. The password is also hashed with some known salt, and the username, password salt, hashed password, and encryption key salts are all written to `key_manager.txt`. Thus, if a username exists in the directory, salts and hashed passwords should also be in the directory. After all that, the API keys are returned.
 
-If the username exists and the provided password concatenated with the salt in `key_manager.txt` hashes to the hashed password in `key_manager.txt`, the user is validated and the keys for encryption/decryption are generated. If encryption keys are on file, the API keys are decrypted and returned.
+If the username exists and the provided password concatenated with the salt in `key_manager.txt` hashes to the hashed password in `key_manager.txt`, the user is validated and the keys for decrypting the API info are generated, and the API keys are returned to the user.
 
 
 ### Dynamics work like this: 
 
-The above describese how we keep track of our historical data; it's natural to ask "how and when do we decide to issue `buy` or `sell` actions?" Part of this is determined with the market information using `Oracle.py`, and part of this is determined by the history of recent buys and sells we are trying to match, using `Trader.py`.
+First problem: "How and when do we decide to issue `buy` or `sell` actions?" Part of this is determined with the market information using `Oracle.py`, and part of this is determined by the history of recent buys and sells we are trying to match, using `Trader.py`. Certainly, regardless of the market trend and history, if a chance is available to take some profit by matching an old `buy` or `sell` action with a new, dual action, we should take it. On the other hand, if we have no historical information, we should judge the recent trend of prices before making a move.
 
-The file `Oracle.py` should be run once an hour. It pulls hourly historical pricing information from Coinbase. We determine a `preferred_timescale` that maximizes a normalized signal-to-noise ratio (SNR) for the log of the price in the following way: for each possible timescale, `T` hours (integer), compute the average of the past `T` hours of `log(price)` and call this `average_historical_log_price`. Also compute and the (unbiased) standard deviation of the past `T` hours, `stdev_historical_log_price`, and define the SNR `snr[T] = average_historical_log_price*sqrt(T)/stdev_historical_log_price` and we choose `T` that maximizes this ratio. Then, for the last `T` measurements of `log(price)`, we find the OLS best-fit line, say `log(trend_price) = slope*time + intercept`. Then we hypothesize that deviations from this `trend_price`, say `z_i = abs(log(price(i)) - log(trend_price))` are i.i.d. zero-mean normal random variables (this assumption is false in general, and will be improved eventually). We call the upper and lower bounds of this window `(lower_bound_on_trend, upper_bound_on_trend)` computes the best fit linear trend, and assumes the residuals are iid normal. From this we can generate a `100(1-a/2)` percent confidence interval for the residuals, which we can apply to the trend to get an upper and lower bound on price.
+Judging trends: the file `Oracle.py` should be run once an hour using `cron` or whatever. It pulls hourly historical pricing information from Coinbase. We determine a preferred timescale that maximizes a normalized signal-to-noise ratio (SNR) for the log of the price in `_find_good_sample_size`. That sounds technical but we do the following: for each possible timescale, `i` hours (integer), compute the average of the past `i` hours of the natural log of the price and call this `y_mean`. Also compute and the (unbiased) standard deviation of the past `i` hours, `y_stdev`, and define the SNR `snr = y_mean*sqrt(i)/y_stdev` and we choose the `i` that maximizes this ratio. 
 
-The file `Trader.py` should be run once a minute. This file will make new `buy` and `sell` actions based on the current price (which it pulls from Coinbase every second or so), based on the upper and lower bound on price from `Oracle.py`, and based on unmatched buys and sells. We compute a running pair of price thresholds, `buy_trigger` and `sell_trigger`, such that if the price drops below `buy_trigger` or if the price rises above `sell_trigger`, we issue a new `buy` or `sell` actions. We require rules to compute these thresholds, and we require rules for computing the amount in these transactions. 
+Then, in `_get_linear_trend` with our preferred timescale in hand, we sample the last `i` hours of pricing information and we find the OLS best-fit line, say `log(trend_price) - y_mean = best_fit_slope*(time - t_mean)` . Then we hypothesize that deviations from this line, (residual, say `z_i = abs(log(price(i)) - log(trend_price))`) are i.i.d. zero-mean normal random variables (this assumption is false in general, and will be improved eventually).  From this and using `y_stdev`, we can generate a `100(1-alpha/2)` percent confidence interval, which we can apply to the trend to get an upper and lower bound on price. These parameters (`y_mean`, `t_mean`, `best_fit_slope`, `y_stdev`, and the residuals) are used in `Trader.py`; we call the upper and lower bounds of this window `trend_buy_trig` and `trend_sell_trig` in `Trader.py`
 
-To compute thresholds, we use the recent price trend window from `Oracle.py` and the current `Buy_Q` and `Sell_Q`, and a pair of constants, `p` and `q`. In the `Buy_Q`, we find the lowest price in USD of the buys in `Buy_Q`, say `min_buy_price`. If the current price is bigger than `sell_trigger = (1+p)*min_buy_price` then we can sell a bit of Bitcoin and make some profit in USD. If the `Buy_Q` is empty, we set our `sell_trigger = upper_bound_on_trend`.  In the `Sell_Q`, we find the highest price in USD of the sells in `Sell_Q`, say `max_sell_price`. If the current price is smaller than `buy_trigger = (1-q)*max_sell_price` then we can buy a bit of bitcoin for cheaper than we sold it. If the `Sell_Q` is empty, we set our `buy_trigger = lower_bound_on_trend`.
+The file `Trader.py` should be run once - it runs forever or until canceled by the user. This file will make new buy and sell actions based on the current price (which it pulls from Coinbase every second or so), based on the upper and lower bound on price from `Oracle.py`, and based on unmatched buys and sells. We compute a running pair of price thresholds, `self.triggers['buy']` and `self.triggers['sell']`, such that if the price drops below the buy trigger or if the price rises above the sell trigger, we issue a new buy or sell action. We require rules to compute these thresholds (we already know how we compute trend-based triggers, see above), and we require rules for computing the amount in these transactions. 
+
+Users set their personal parameter choice for a value of `p` between 0.0 and 1.0 (I use 0.05). In the `buy_q`, we find the lowest price in USD of the buys, say `min_buy_price`. If the effective current sell price after fees is bigger than `(1+p)*min_buy_price` then we can sell a bit of Bitcoin and make some profit in USD.  If the effective current sell price after fees is not bigger than this value, but still is bigger than `trend_sell_trigger` we will go ahead and make the sell anyway in the hopes that the trendline computation is true-ish. If the `buy_q` is empty, we have no option except to set the sell trigger as `trend_sell_trigger`.
+
+Dually, in the `Sell_Q`, we find the highest price in USD of the sells in `Sell_Q`, say `max_sell_price`. If the effective current buy price is smaller than `max_sell_price/(1+p)` then we can buy a bit of bitcoin for cheaper than we sold it. If the effective current buy price after fees is not smaller than this value, but is still smaller than `trend_buy_trigger` we will go ahead and make the buy anyway in the hopes that the trendline computation is true-ish. If the `Sell_Q` is empty, we set our buy trigger as `trend_buy_trigger`.
 
 
 
 
 ### Bookkeeping works like this: 
 
-We have `buy` actions and `sell` actions that take place on a timeline. We link actions into bets with `buy_low_sell_high` bets and `sell_high_buy_low` bets, consisting of an ordered pair `(action1, action2)`. The timestamp of `action1` always occurs before the timestamp of `action2`. If `action1` is a `buy` action then `action2` must be a `sell` action such that the net profit in USD is positive. If `action2` is a `sell` action then `action1` must be a `buy` action such that the net profit in BTC is positive. If a pair of actions are linked in such an ordered pair, so we call these actions "paired."
+We have `buy` actions and `sell` actions that take place on a timeline. We want to link actions into bets with a low buy and high sell. These bets will  consisting of an ordered pair `(action1, action2)`. The timestamp of `action1` always occurs before the timestamp of `action2`. If `action1` is a `buy` action then `action2` must be a `sell` action such that the net profit in USD is positive. If `action2` is a `sell` action then `action1` must be a `buy` action such that the net profit in BTC is positive. If a pair of actions are linked in such an ordered pair, so we call these actions "paired."
 
 As we issue actions to Coinbase and then receive confirmation of those actions, the results are added to a `Buy_Q` and a `Sell_Q` in chronological order. After an action is added to these queues, we look for possible pairs/bets following first-in-first-out rules: we will pair the earliest chronologically occurring action in either `Buy_Q` or `Sell_Q` that has a corresponding action in the opposite queue satisfying the profit condition. We de-queue the to-be-paired actions, store them into an ordered pair of the form `(action1, action2)`, and append the resulting ordered pair to a file, say `bet_history.csv` (these are resolved bets, no need to keep their information liquid).
 
