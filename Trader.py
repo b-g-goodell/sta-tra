@@ -94,9 +94,9 @@ class Trader(object):
 	def _user_login(self):
 		alfred = API_Key_Manager()
 		login_successful, username, api_keys = alfred.get_api_keys()
-		print login_successful, username, api_keys
+		#print login_successful, username, api_keys
 		if api_keys is not None and login_successful:
-			print "woop!"
+			#print "woop!"
 			self.user_preferences['username'] = username
 			self.wallet = Client(api_keys[0].encode('utf-8'), api_keys[1].encode('utf-8'))
 			self.user_preferences['filename'] = self.self_path  + "/users/" + username + ".pref"
