@@ -89,6 +89,7 @@ class Trader(object):
 				action_taken = self._make_sell(quoted_sell_price)
 				assert len(self.sell_q) - old_len > 0
 			if action_taken:
+				self._write_user_preferences() # Ensures bankroll is tracked appropriately
 				self._make_pairs()
 				self._update_records()
 			# When these actions are made, they are added to unmatched
@@ -202,7 +203,10 @@ class Trader(object):
 				print "Error! The bitcoin balance you are attempting to trade with is greater than your current bitcoin balance. Please try again."
 				continue
 		self.user_preferences['commodity_bankroll'] = br
-		#print self.user_preferences
+		
+		self._write_user_preferences()
+		
+	def _write_user_preferences(self):
 		with open(self.user_preferences['filename'],"w") as port_file:
 			lines = []
 			line = "change_trigger\t" + str(self.user_preferences['change_trigger']) + "\n"
@@ -219,7 +223,6 @@ class Trader(object):
 			lines.append(line)
 			for line in lines:
 				port_file.write(line)
-	
 		pass
 
 	def _open_user_preferences(self):
