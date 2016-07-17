@@ -10,6 +10,17 @@ from scipy.stats import t as students_t
 class Trader(object):
 	def __init__(self):
 		self.self_path = os.path.dirname(os.path.realpath(__file__))
+		
+		directory = "data"
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+		directory = "users"
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+		directory = "key_manager"
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+		
 		self.log_filename = self.self_path + "/data/coinbasetrader.log"
 		self.pair_filename = self.self_path + "/data/pairs.log"
 		self.trigger_filename = self.self_path + "/data/triggers.dat"
@@ -61,8 +72,8 @@ class Trader(object):
 				print "Something went wrong pulling current price. Proceeding anyway."
 				continue
 			
-			effective_buy_price = float(quoted_buy_price)*1.01 # Coinbase has 1% fees
-			effective_sell_price = float(quoted_sell_price)/1.01	# Coinbase has 1 fees
+			effective_buy_price = float(quoted_buy_price)#*1.01 # Coinbase has 1% fees
+			effective_sell_price = float(quoted_sell_price)#/1.01	# Coinbase has 1 fees
 
 			print "\n------Price Report------\n"
 			print "Eff. Buy price : ", effective_buy_price, ", buy_trigger : ", self.triggers['buy'], "\n"
@@ -266,35 +277,18 @@ class Trader(object):
 			
 				
 	def _compute_trigger_window(self):
-		# For each this_price in buy_q, if current_price>this_price*self.user_preferences['change_trigger'], we want to make a sale.
-		# For each this_price in sell_q, if current_price < this_price/self.user_preferences['change_trigger'], we want to make a buy.
 		this_time = time.time()
-		pairing_buy_trigs = None
-		pairing_sell_trigs = None
-		
-		# If the current sell price is bigger than the smallest of the older buy prices,
-		# then we can sell for profit
-		prices_in_buy_q = [float(x['cost_basis'])*(1.0+self.user_preferences['change_trigger']) for x in self.buy_q]
-		#print "==============="
-		#print "Buy queue report:"
-		#print self.buy_q
-		#print "==============="
-		
-		
-		# If the current buy price is lower than the largest of the older sell prices,
-		# then we can buy btc for cheaper than we sold it.
-		prices_in_sell_q = [float(x['cost_basis'])/(1.0+self.user_preferences['change_trigger']) for x in self.sell_q]
-		#print "==============="
-		#print "Sell queue report:"
-		#print self.sell_q
-		#print "==============="
-				
-		if len(prices_in_buy_q) > 0:
-			pairing_sell_trigs = min(prices_in_buy_q)
+		prices_in_buy_q = [float(x['cost_basis']) for x in self.buy_q] # *(1.0+self.user_preferences['change_trigger'])
+		prices_in_sell_q = [float(x['cost_basis']) for x in self.sell_q] # *(1.0+self.user_preferences['change_trigger'])
 		if len(prices_in_sell_q) > 0:
-			pairing_buy_trigs = max(prices_in_sell_q)
+			max_old_sell = max(prices_in_sell_q)
+		else:
+			max_old_sell = None
+		if len(prices_in_buy_q) > 0:
+			min_old_buy = min(prices_in_buy_q)
+		else:
+			min_old_buy = None
 		
-	
 		should_pull_data = (self.k is None) or \
 			(self.sample_size is None) or \
 			(self.y_mean is None) or \
@@ -314,14 +308,23 @@ class Trader(object):
 		trend_buy_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))-self.k*t_score)
 		trend_sell_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))+self.k*t_score)
 		
-		if pairing_buy_trigs is not None:
-			self.triggers['buy'] = max(pairing_buy_trigs, trend_buy_trig)
+		if max_old_sell is not None:
+			sell_trigger_new = max(trend_sell_trig, max_old_sell*(1.0+self.user_preferences['change_trigger']))
 		else:
-			self.triggers['buy'] = trend_buy_trig
-		if pairing_sell_trigs is not None:
-			self.triggers['sell'] = min(pairing_sell_trigs, trend_sell_trig)
+			sell_trigger_new = trend_sell_trig
+		if min_old_buy is not None:
+			buy_trigger_new = min(trend_buy_trig, min_old_buy/(1.0+self.user_preferences['change_trigger']))
 		else:
-			self.triggers['sell'] = trend_sell_trig
+			buy_trigger_new = trend_buy_trig
+		
+		if max_old_sell is not None:
+			self.triggers['buy'] = max(max_old_sell/(1.0+self.user_preferences['change_trigger']),buy_trigger_new)
+		else:
+			self.triggers['buy'] = buy_trigger_new
+		if min_old_buy is not None:
+			self.triggers['sell'] = min(min_old_buy*(1.0+self.user_preferences['change_trigger']),sell_trigger_new)
+		else:
+			self.triggers['sell'] = sell_trigger_new
 
 	def _make_buy(self, quoted_price):
 		amount_in_usd = 0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['currency_bankroll']
