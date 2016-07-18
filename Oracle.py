@@ -9,13 +9,13 @@ from scipy.stats import t
 
 class Oracle(object):
 	def __init__(self, fn="triggers.dat", hist_url="https://api.coinbase.com/v2/prices/historic", default_perc = 0.99):
-		directory = "data"
+		directory = self.self_path + "/data"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
-		directory = "users"
+		directory = self.self_path + "/users"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
-		directory = "key_manager"
+		directory = self.self_path + "/key_manager"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 	
