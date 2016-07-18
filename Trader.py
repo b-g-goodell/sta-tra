@@ -11,13 +11,13 @@ class Trader(object):
 	def __init__(self):
 		self.self_path = os.path.dirname(os.path.realpath(__file__))
 		
-		directory = "data"
+		directory = self.self_path + "/data"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
-		directory = "users"
+		directory = self.self_path + "/users"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
-		directory = "key_manager"
+		directory = self.self_path + "/key_manager"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 		
