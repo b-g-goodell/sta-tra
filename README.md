@@ -1,6 +1,19 @@
 # sta-tra
 Use basic statistical tools to execute buys/sells using Coinbase API. I'm in the midst of refactoring from an older version of this code that was less well-planned than I hoped...
 
+# To run:
+
+Download, run Oracle.py once to start and then set up Oracle.py to run once an hour using cron or Windows Task Manager (see below). Then get your API keys handy from Coinbase and run Trader.py. First time users will be prompted for their username, then their API keys, and then prompted for a password. The code will ask you for some user preferences: 
+
+1. What percentage change in bitcoin price should trigger an action? For example, if you want to rebalance if the price moves by more than 3%, then your input should be 0.03. I usually use 0.05; in order to clear fees, we recommend values above 0.01.
+2. What confidence level do we want to use when drawing our trendlines? For example, if you want 99% confidence intervals, then your input should be 0.99. I usually use 0.99, but this is largely a cosmetic choice from our experiences.
+3. Of all the bitcoin accounts/wallets that Coinbase has on file for you, which bitcoin account/wallet on Coinbase would you like to trade with? I have a separate bitcoin account/wallet set up on Coinbase specifically for trading.
+4. Of all the payment methods that Coinbase has on file for you, Which payment method would you like to use? I use their USD Wallet in order to ensure "instant" transactions and to prevent overdraft fees from a bank if the code goes wonky.
+5. Of all the bitcoin in your selected account/wallet, how much do you want to be actively trading with? We can verify your account balances with Coinbase, so you can be a little sloppy with this number without getting totally fucked.
+6. Of your USD funds from your payment method, how much are you willing to gamble/flush down the toilet with this code? We cannot verify this number at all, so we recommend very carefully answering. If you provide an answer that will cause you to overdraft or get your credit card declined, that's your problem, not ours. This is why we prefer using the Coinbase USD Wallet if possible.
+
+After that, everything should take off.
+
 ## Running with Windows 10
 
 This has entirely been developed in Ubuntu (precise and trusty usually) so I have no idea how well it will port to windows. I also am under the impression that numpy and scipy are both a pain in the ass with Windows. So, I dunno, dual boot yourself some Ubuntu or use some Crouton for this.
