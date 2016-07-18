@@ -83,11 +83,11 @@ class Trader(object):
 			if effective_buy_price < self.triggers['buy']:
 				old_len = len(self.buy_q)
 				action_taken = self._make_buy(quoted_buy_price)
-				assert len(self.buy_q) - old_len > 0
+				assert action_taken #(len(self.buy_q) - old_len) > 0
 			elif effective_sell_price > self.triggers['sell']:
 				old_len = len(self.sell_q)
 				action_taken = self._make_sell(quoted_sell_price)
-				assert len(self.sell_q) - old_len > 0
+				assert action_taken #len(self.sell_q) - old_len > 0
 			if action_taken:
 				self._write_user_preferences() # Ensures bankroll is tracked appropriately
 				self._make_pairs()
@@ -330,23 +330,26 @@ class Trader(object):
 			self.triggers['sell'] = sell_trigger_new
 
 	def _make_buy(self, quoted_price):
-		amount_in_usd = 0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['currency_bankroll']
+		usd_amt = 0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['currency_bankroll']
 		print "Executing buy!"
 		result = None
 		btc_amt = usd_amt/quoted_price
-		print "USD Amt: ", amount_in_usd, " BTC Amt: ", btc_amt, "\n"
+		print "USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
 		assert usd_amt > 1.0, "Error, tried to buy only " + str(usd_amt) + " in USD..."
-		b = self.wallet.buy(self.user_preferences['commodity_acct'].id, total=amount_in_usd, commit='false', currency = self.user_preferences['commodity_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
+		b = self.wallet.buy( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
+		#s = self.wallet.sell(self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
 		actual_price = None
 		try:
 			actual_price = float(float(b.total.amount)/float(b.amount.amount))
 		except:
 			print "Oops! Couldn't compute actual price!"
 		result = False
+		#print "actual price ", actual_price, " abs(actual_price-quoted_price) ", abs(actual_price - quoted_price)
 		if actual_price is not None and abs(actual_price - quoted_price) < 0.5:
 			result = True
+			#print "wooo, set result = true"
 			try:
-				b = self.wallet.commit_buy(self.commodity_account.id, b.id)
+				b = self.wallet.commit_buy(self.user_preferences['commodity_acct'].id, b.id)
 			except:
 				result = False
 				#continue
@@ -358,9 +361,9 @@ class Trader(object):
 			resulting_buy['cost_basis'] = float(b.total.amount)/float(b.amount.amount)
 			resulting_buy['created_at'] = b.created_at
 			resulting_buy['type'] = 'buy'
-			print "Length of buy_Q:", len(self.buy_q)
+			#print "Length of buy_Q:", len(self.buy_q)
 			self.buy_q.append(resulting_buy)
-			print "Length of buy_Q: ", len(self.buy_q)
+			#print "Length of buy_Q: ", len(self.buy_q)
 			with open(self.log_filename, "w") as log_file:
 				for item in b:
 					log_file.write(str(item) + ", " + str(b[item]))
@@ -412,32 +415,39 @@ class Trader(object):
 			this_buy = self.buy_q.popleft()
 			while len(self.sell_q) > 0 and this_buy is not None:
 				this_sell = self.sell_q.popleft()
-				if this_buy['cost_basis']*self.user_preferences['change_trigger'] >= this_sell['cost_basis']:
+				if this_buy['cost_basis']*(1.0 + self.user_preferences['change_trigger']) >= this_sell['cost_basis']:
 					temp_sell_q.append(this_sell)
 				else:
-					if this_buy['created'] < this_sell['created_at']:
+					if this_buy['created_at'] < this_sell['created_at']:
 						change = self._pair(this_buy, this_sell)
 					else:
 						change = self._pair(this_sell, this_buy)
 					if change['type'] == 'buy':
+						#self.buy_q.appendleft(change)
 						this_buy = change
+						this_sell = None
 					else:
-						self.sell_q.appendleft(change)
 						this_buy = None
+						this_sell = change
+			temp_sell_q.appendleft(change)
+			while(len(self.sell_q) > 0):
+				temp_sell_q.appendleft(self.sell_q.popleft())
 			self.sell_q = temp_sell_q
 			if this_buy is not None:
 				temp_buy_q.append(this_buy)
+		while(len(self.buy_q) > 0):
+			temp_buy_q.appendleft(self.buy_q.popleft())
 		self.buy_q = temp_buy_q
-		print self.buy_q
-		print self.sell_q
-		#self.sell_q = temp_sell_q
+		#print self.buy_q
+		#print self.sell_q
+		
 		
 	def _pair(self, action_1, action_2):
 		change = {}
 		data_to_write = ""
 		assert action_1['created_at'] <= action_2['created_at']
-		cash_1 = action_1['amount']*action_1['cost_basis']
-		cash_2 = action_2['amount']*action_2['cost_basis']
+		cash_1 = float(action_1['amount'])*float(action_1['cost_basis'])
+		cash_2 = float(action_2['amount'])*float(action_2['cost_basis'])
 		if action_1['amount'] <= action_2['amount']:
 			change['amount'] = action_2['amount'] - action_1['amount']
 			change['cost_basis'] = (cash_2 - cash_1)/change['amount']
@@ -445,7 +455,7 @@ class Trader(object):
 			change['type'] = action_2['type']
 			data_to_write = action_1['type'] + "\t" + action_1['created_at'] + "\t" + action_2['type'] + "\t" + action_2['created_at'] + "\t" + str(action_1['amount']) + "\t" + str(action_1['cost_basis']) + "\t" + str(action_2['cost_basis']) + "\n"
 		else:
-			change['amount'] = action_1['amount'] - action_2['amount']
+			change['amount'] = float(action_1['amount']) - float(action_2['amount'])
 			change['cost_basis'] = (cash_1 - cash_2)/change['amount']
 			change['created_at'] = action_1['created_at']
 			change['type'] = action_1['type']
