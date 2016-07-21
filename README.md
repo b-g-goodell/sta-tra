@@ -1,5 +1,16 @@
 # sta-tra
-Use basic statistical tools to execute buys/sells using Coinbase API. I'm in the midst of refactoring from an older version of this code that was less well-planned than I hoped...
+Use basic statistical tools to execute buys/sells using Coinbase API.
+
+# Dependencies
+
+We use the coinbase python library, the json library, the requests library, and scipy.
+
+What's worked for me is to use the following:
+
+        sudo apt-get install git python-scipy python-pip libffi-dev libssl-dev
+        sudo pip install pyopenssl ndg-httpsclient pyasn1 coinbase pbkdf2
+
+Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
 
 # To run:
 
@@ -14,9 +25,17 @@ Download, run Oracle.py once to start and then set up Oracle.py to run once an h
 
 After that, everything should take off.
 
+# Different Operating Systems
+
+I've had a surprising amount of difficulty getting this going in different settings. I've tried to summarize the methods that have worked well below:
+
 ## Running with Windows 10
 
-This has entirely been developed in Ubuntu (precise and trusty usually) so I have no idea how well it will port to windows. I also am under the impression that numpy and scipy are both a pain in the ass with Windows. So, I dunno, dual boot yourself some Ubuntu or use some Crouton for this.
+This has entirely been developed in Ubuntu (precise and trusty usually) so I have no idea how well it will port to windows. I also am under the impression that numpy and scipy are both a pain in the ass with Windows. So, I dunno, dual boot yourself some Ubuntu or use some Crouton for this, or use Virtualbox in windows to run Ubuntu (see below).
+
+## With Virtualbox
+
+Head over to Ubuntu.com and grab yourself an Ubuntu 14.04 iso file and use Virtualbox to set up a virtual ubuntu box. Install the dependencies below, and then install guest additions. You can use the command line to do so with `sudo apt-get install virtualbox-guest-dkms` but this didn't work very well for me to get bidirectional clipboard and resolution resizing working. I had to (in the virtualbox window) click on Devices, then Insert Guest Additions CD Image. After installing, rebooting virtualbox got the clipboard and resolution working.  I then installed all the dependencies below, cloned this git repository, added Oracle to crontab, ran it once, and then started running Trader.py
 
 ## Running with Crouton
 
@@ -47,22 +66,12 @@ and add the following line to the bottom of my crontab file:
 
         1 * * * * root /usr/bin/python /path/to/scripts/Oracle.py
         
-### Dependencies
 
-We use the coinbase python library, the json library, the requests library, and both numpy and scipy.
+# Mechanics
 
-What's worked for me is to use the following:
+This section describes how the code actually works. It's broken into a few subsections: password management (because there's no good reason to save your API keys as a plaintext file on a computer or, worse, on a server), fundamental dynamics (to describe exactly what's going on with the price), trend-based triggers (to describe how we compute all this), and bookkeeping.
 
-        sudo apt-get install git python-scipy python-numpy python-pip libffi-dev libssl-dev
-        sudo pip install pyopenssl ndg-httpsclient pyasn1 coinbase pbkdf2
-
-Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
-
-## Mechanics
-
-This section describes how the refactored code works.
-
-### Password management, logging in, encryption:
+## Password management, logging in, encryption:
 
 All this is handled by AESCrypt.py and API_Key_Manager.py.
 
@@ -73,7 +82,7 @@ If the username does not exist in the directory, a password is registered to the
 If the username exists and the provided password concatenated with the salt in `key_manager.txt` hashes to the hashed password in `key_manager.txt`, the user is validated and the keys for decrypting the API info are generated, and the API keys are returned to the user.
 
 
-### Fundamental Dynamic
+## Fundamental Dynamics
 
 First problem: "How and when do we decide to issue `buy` or `sell` actions?" First, when the user logs in for the first time, they set the percentage change in price that triggers an action (question 1 in Section "To Run"), maybe call this `p`.  Second, We compute the minimum of all the unmatched `buy` actions on record, say `min_old_buy_prices`, and the maximum of all unmatched `sell` actions on record, say `max_old_sell_prices`. Third, we compute the trend-based triggers, say `trend_buy_trig` and `trend_sell_trig` as described below. Then we do something akin to this:
         
@@ -84,16 +93,11 @@ First problem: "How and when do we decide to issue `buy` or `sell` actions?" Fir
 
 Note: `trend_buy_trig` and `trend_sell_trig` are determined with the market information using `Oracle.py` completely independent of past trades. The idea of the above is: regardless of the market trend and history, if a chance is available to take some profit by matching an old `buy` or `sell` action with a new, dual action, we should take it. On the other hand, if we have no historical information, we should judge the recent trend of prices before making a move.
 
-### Determining trend-based triggers
+## Trend-based triggers
 
 The file `Oracle.py` should be run once an hour using `cron` or whatever. It pulls hourly historical pricing information from Coinbase. We determine a preferred timescale that maximizes a normalized signal-to-noise ratio (SNR) for the log of the price in `_find_good_sample_size`. That sounds technical but we do the following: for each possible timescale, `i` hours (integer), compute the average of the past `i` hours of the natural log of the price and call this `y_mean`. Also compute and the (unbiased) standard deviation of the past `i` hours, `y_stdev`, and define the SNR `snr = y_mean*sqrt(i)/y_stdev` and we choose the `i` that maximizes this ratio. Then, in `_get_linear_trend` with our preferred timescale in hand, we sample the last `i` hours of pricing information and we find the OLS best-fit line, say `log(trend_price) - y_mean = best_fit_slope*(time - t_mean)` . Then we hypothesize that deviations from this line, (residual, say `z_i = abs(log(price(i)) - log(trend_price))`) are i.i.d. zero-mean normal random variables (this assumption is false in general, and will be improved eventually).  From this and using `y_stdev`, we can generate a `100(1-alpha/2)` percent confidence interval, which we can apply to the trend to get an upper and lower bound on price. These parameters (`y_mean`, `t_mean`, `best_fit_slope`, `y_stdev`, and the residuals) are used in `Trader.py`; we call the upper and lower bounds of this window `trend_buy_trig` and `trend_sell_trig`.
 
-### Continuous operation
-
-The file `Trader.py` should be run once - it runs forever or until canceled by the user. This file will make new buy and sell actions based on the current price (which it pulls from Coinbase every second or so), based on the upper and lower bound on price from `Oracle.py`, and based on unmatched buys and sells. We compute a running pair of price thresholds, `self.triggers['buy']` and `self.triggers['sell']`, such that if the price drops below the buy trigger or if the price rises above the sell trigger, we issue a new buy or sell action (see Section: Fundamental Dynamic). 
-
-
-### Bookkeeping works like this: 
+## Bookkeeping
 
 We have `buy` actions and `sell` actions that take place on a timeline. We want to link actions into bets with a low buy and high sell. These bets will  consisting of an ordered pair `(action1, action2)`. The timestamp of `action1` always occurs before the timestamp of `action2`. If `action1` is a `buy` action then `action2` must be a `sell` action such that the net profit in USD is positive. If `action2` is a `sell` action then `action1` must be a `buy` action such that the net profit in BTC is positive. If a pair of actions are linked in such an ordered pair, so we call these actions "paired."
 
@@ -101,6 +105,6 @@ As we issue actions to Coinbase and then receive confirmation of those actions, 
 
 If an action remains in the `Buy_Q` or the `Sell_Q` for a long time, this means that the price hasn't allowed this action to be paired. This corresponds to buying high before a price drop, or selling low before a price rise. These are bad moves that we need to remember, historically, so that we can try to recover from epic bad decisions from the past. Hence, we need our current `Buy_Q` and `Sell_Q` to also be written to file after each time they are updated, say `Buy_Q.csv` and `Sell_Q.csv`. This way, each time we load the program, we pick up where we left off.
 
-#### Future implementations 
+# Future implementations 
 
-We will have more complicated buy/sell strategies. After we have some probabilities estimated, we can start using Kelly betting. Eventually, I would like to develop some neural networks that are trained to respond to time series.
+We will have more complicated buy/sell strategies. After we have some probabilities estimated, we can start using Kelly betting. Eventually, I would like to develop some neural networks that are trained to respond to time series. I also want to use a better-than-hourly historical pricing scheme, possibly pulling and logging price every minute or every 15 minutes or whatever. I also want to get this thing running on Digital Ocean so that I don't have to worry about accidentally kicking a power cord and cutting my local computer off.
