@@ -364,7 +364,7 @@ class Trader(object):
 			#print "Length of buy_Q:", len(self.buy_q)
 			self.buy_q.append(resulting_buy)
 			#print "Length of buy_Q: ", len(self.buy_q)
-			with open(self.log_filename, "w") as log_file:
+			with open(self.log_filename, "a") as log_file:
 				for item in b:
 					log_file.write(str(item) + ", " + str(b[item]))
 		return result
@@ -414,6 +414,7 @@ class Trader(object):
 		while len(self.buy_q) > 0:
 			this_buy = self.buy_q.popleft()
 			while len(self.sell_q) > 0 and this_buy is not None:
+				change = None
 				this_sell = self.sell_q.popleft()
 				if this_buy['cost_basis']*(1.0 + self.user_preferences['change_trigger']) >= this_sell['cost_basis']:
 					temp_sell_q.append(this_sell)
@@ -429,14 +430,18 @@ class Trader(object):
 					else:
 						this_buy = None
 						this_sell = change
-			temp_sell_q.appendleft(change)
-			while(len(self.sell_q) > 0):
-				temp_sell_q.appendleft(self.sell_q.popleft())
-			self.sell_q = temp_sell_q
+				if this_sell is not None:
+					temp_sell_q.append(this_sell)
+			#self.sell_q = temp_sell_q
 			if this_buy is not None:
 				temp_buy_q.append(this_buy)
-		while(len(self.buy_q) > 0):
-			temp_buy_q.appendleft(self.buy_q.popleft())
+			#while(len(self.sell_q) > 0):
+			#	temp_sell_q.appendleft(self.sell_q.popleft())
+			#self.sell_q = temp_sell_q
+			#if this_buy is not None:
+			#	temp_buy_q.append(this_buy)
+		#while(len(self.buy_q) > 0):
+		#	temp_buy_q.appendleft(self.buy_q.popleft())
 		self.buy_q = temp_buy_q
 		#print self.buy_q
 		#print self.sell_q
