@@ -309,8 +309,8 @@ class Trader(object):
 		df = self.sample_size - 1
 		t_score = -1.0*students_t.ppf(alpha, df)
         
-		trend_buy_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))-self.k*t_score)/(1.0+self.user_preferences['change_trigger'])
-		trend_sell_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))+self.k*t_score)*(1.0+self.user_preferences['change_trigger'])
+		trend_buy_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))-self.k*t_score)#/(1.0+self.user_preferences['change_trigger'])
+		trend_sell_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))+self.k*t_score)#*(1.0+self.user_preferences['change_trigger'])
 		
 		if max_old_sell is not None:
 			sell_trigger_new = max(trend_sell_trig, max_old_sell*(1.0+self.user_preferences['change_trigger']))
@@ -403,7 +403,7 @@ class Trader(object):
 				print "Length of sell_Q: ", len(self.sell_q)
 				self.sell_q.append(resulting_sell)
 				print "Length of sell_Q: ", len(self.sell_q)
-				with open(self.log_filename, "w") as log_file:
+				with open(self.log_filename, "a") as log_file:
 					for item in s:
 						log_file.write(str(item) + ", " + str(s[item]))
 				
