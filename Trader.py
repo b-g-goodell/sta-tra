@@ -105,20 +105,21 @@ class Trader(object):
 
 	def _user_login(self):
 		alfred = API_Key_Manager()
+		api_keys = None
 		login_successful, username, api_keys = alfred.get_api_keys()
-		#print login_successful, username, api_keys
+		self.wallet = None
+		print login_successful, username, api_keys
 		if api_keys is not None and login_successful:
-			#print "woop!"
+			print "woop!"
 			self.user_preferences['username'] = username
 			self.wallet = Client(api_keys[0].encode('utf-8'), api_keys[1].encode('utf-8'))
 			self.user_preferences['filename'] = self.self_path  + "/users/" + username + ".pref"
-			#self.user_preferences['filename']
 			if not os.path.isfile(self.user_preferences['filename']):
 				self._set_user_preferences()
 			else:
 				self._open_user_preferences()
         
-		assert self.wallet != None
+		assert self.wallet is not None
 	
 	def _set_user_preferences(self):
 		print "=============="
@@ -308,8 +309,8 @@ class Trader(object):
 		df = self.sample_size - 1
 		t_score = -1.0*students_t.ppf(alpha, df)
         
-		trend_buy_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))-self.k*t_score)
-		trend_sell_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))+self.k*t_score)
+		trend_buy_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))-self.k*t_score)/(1.0+self.user_preferences['change_trigger'])
+		trend_sell_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))+self.k*t_score)*(1.0+self.user_preferences['change_trigger'])
 		
 		if max_old_sell is not None:
 			sell_trigger_new = max(trend_sell_trig, max_old_sell*(1.0+self.user_preferences['change_trigger']))
