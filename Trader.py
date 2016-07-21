@@ -413,39 +413,59 @@ class Trader(object):
 		temp_buy_q = deque()
 		temp_sell_q = deque()
 		while len(self.buy_q) > 0:
+			# Take buys out of queue in order and store them as this_buy
 			this_buy = self.buy_q.popleft()
 			while len(self.sell_q) > 0 and this_buy is not None:
-				change = None
+				# Take sells out of queue in order, store as this_sell
 				this_sell = self.sell_q.popleft()
+				# Set the `change` object to None... either the buy
+				# or the sell will be bigger, and after pairing 
+				# whichever is bigger will have leftover unpaired...
+				# This is `change` as in `making change`
+				change = None
 				if this_buy['cost_basis']*(1.0 + self.user_preferences['change_trigger']) >= this_sell['cost_basis']:
+					# In this case, a pair is not possible, so we put
+					# this_sell into a temporary sell queue.
 					temp_sell_q.append(this_sell)
 				else:
+					# In this case, a pair is possible. So we use the
+					# _pair function with the buy and sell in chrono-
+					# logical order.
 					if this_buy['created_at'] < this_sell['created_at']:
 						change = self._pair(this_buy, this_sell)
 					else:
 						change = self._pair(this_sell, this_buy)
+						
+					# We have a `change` thingy, which is either a buy
+					# or a sell. If it's a buy, simply set this_buy
+					# to the change and clear out this_sell. If change
+					# is a sell, then we put the change into the temp
+					# sell queue and clear out this_buy.
 					if change['type'] == 'buy':
-						#self.buy_q.appendleft(change)
 						this_buy = change
 						this_sell = None
 					else:
 						this_buy = None
-						this_sell = change
-				if this_sell is not None:
-					temp_sell_q.append(this_sell)
-			#self.sell_q = temp_sell_q
-			if this_buy is not None:
+						temp_sell_q.append(change)				
+			# Okay, now we've exhausted the sell queue or we matched 
+			# this_buy. Either way, we want to go on to the next buy.
+			# If we have matched this_buy then we have a temp 
+			# sell queue and self.sell_q which we must merge in order
+			# before we look at the next buy in the buy_queue for match.
+			# On the other hand, if we have exhausted the sell queue,
+			# then the temporary sell queue is (possibly) full and
+			# we use this as self.sell_q before we look at the next
+			# buy in the buy queue.
+			if this_buy is None:
+				while len(temp_sell_q) > 0:
+					self.sell_q.appendleft(temp_sell_q.pop())
+			else:
 				temp_buy_q.append(this_buy)
-			#while(len(self.sell_q) > 0):
-			#	temp_sell_q.appendleft(self.sell_q.popleft())
-			#self.sell_q = temp_sell_q
-			#if this_buy is not None:
-			#	temp_buy_q.append(this_buy)
-		#while(len(self.buy_q) > 0):
-		#	temp_buy_q.appendleft(self.buy_q.popleft())
+				self.sell_q = temp_sell_q
+			# No matter what at this point, the self.sell_q has not 
+			# lost any information unless matches have occurred.
+		# Okay, now we've exhaused the buy queue, and we have temp_buy_q
 		self.buy_q = temp_buy_q
-		#print self.buy_q
-		#print self.sell_q
 		
 		
 	def _pair(self, action_1, action_2):
