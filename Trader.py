@@ -367,7 +367,8 @@ class Trader(object):
 			#print "Length of buy_Q: ", len(self.buy_q)
 			with open(self.log_filename, "a") as log_file:
 				for item in b:
-					log_file.write(str(item) + ", " + str(b[item]))
+					log_file.write(str(item) + ", " + str(b[item]) + "\n")
+				log_file.write("\n")
 		return result
 
 	def _make_sell(self, quoted_price):
@@ -405,7 +406,8 @@ class Trader(object):
 				print "Length of sell_Q: ", len(self.sell_q)
 				with open(self.log_filename, "a") as log_file:
 					for item in s:
-						log_file.write(str(item) + ", " + str(s[item]))
+						log_file.write(str(item) + ", " + str(s[item]) + "\n")
+					log_file.write("\n")
 				
 		return result
 		
@@ -418,10 +420,9 @@ class Trader(object):
 			while len(self.sell_q) > 0 and this_buy is not None:
 				# Take sells out of queue in order, store as this_sell
 				this_sell = self.sell_q.popleft()
-				# Set the `change` object to None... either the buy
-				# or the sell will be bigger, and after pairing 
-				# whichever is bigger will have leftover unpaired...
-				# This is `change` as in `making change`
+				# Set the `change` object to None... if a pairing is 
+				# possible, either the buy or the sell will be bigger, 
+				# and the leftover is `change` as in `making change`
 				change = None
 				if this_buy['cost_basis']*(1.0 + self.user_preferences['change_trigger']) >= this_sell['cost_basis']:
 					# In this case, a pair is not possible, so we put
@@ -462,6 +463,7 @@ class Trader(object):
 			else:
 				temp_buy_q.append(this_buy)
 				self.sell_q = temp_sell_q
+				temp_sell_q = deque()
 			# No matter what at this point, the self.sell_q has not 
 			# lost any information unless matches have occurred.
 		# Okay, now we've exhaused the buy queue, and we have temp_buy_q
