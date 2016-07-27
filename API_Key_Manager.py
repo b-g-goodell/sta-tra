@@ -83,7 +83,7 @@ class API_Key_Manager(object):
         assert username is not None
         black_box = AESCrypt()
         user_id_salt = "00000000000="
-        user_id = base64.b64encode(black_box.hash_passphrase(username,user_id_salt, bits_to_read=32))
+        user_id = base64.b64encode(black_box.hash_passphrase(username, user_id_salt, bits_to_read=32))
         return user_id
 
     def _open_key_manager(self):

@@ -142,8 +142,15 @@ class Oracle(object):
         # assert sample_mean_of_noise - k*t_score < 0.0 and sample_mean_of_noise + k*t_score > 0.0
         return (k, self.sample_size, result[0], result[1], result[2], result[3])
 
+    def _get_stdev(self, data):
+        mean = self._get_mean(data)
+        squared_deviations = [(d-mean)**2.0 for d in data]
+        sample_size = len(data)
+        variance = sum(squared_deviations)/(sample_size - 1)
+        return variance**0.5
+
     @staticmethod
-    def _get_dot_product(self, y_data, unit_t_data):
+    def _get_dot_product(y_data, unit_t_data):
         assert len(y_data) == len(unit_t_data)
         s = 0.0
         for i in range(len(y_data)):
@@ -151,14 +158,14 @@ class Oracle(object):
         return s
 
     @staticmethod
-    def _get_length_of_vector(self, data):
+    def _get_length_of_vector(data):
         s = 0.0
         for d in data:
             s += d * d
         return s ** 0.5
 
     @staticmethod
-    def _get_mean(self, data):
+    def _get_mean(data):
         s = 0.0
         # print len(data)
         for d in data:
@@ -167,13 +174,5 @@ class Oracle(object):
         # print "sum/len(data): ", s/len(data)
         # print "sum/float(len(data)): ", s/float(len(data))
         return s / len(data)
-
-    @staticmethod
-    def _get_stdev(self, data):
-        mean = self._get_mean(data)
-        squared_deviations = [(d-mean)**2.0 for d in data]
-        sample_size = len(data)
-        variance = sum(squared_deviations)/(sample_size - 1)
-        return variance**0.5
 
 ollie = Oracle()
