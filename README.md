@@ -12,6 +12,22 @@ What's worked for me is to use the following:
 
 Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
 
+# Coinbase API keys
+
+I don't recommend that you enable any API keys ever, because that's a surefire way to accidentally lose all your money. But if you want to run my code, you gotta. I strongly recommend enabling 2-factor authentication before doing so (not that 2FA will help if someone gets ahold of your keys...) This code will encrypt those keys before storing them locally, but merely having API keys enabled is technically a security risk. Be forewarned.
+
+Go to Coinbase, log in, click on Settings on the sidebar on the left. Go to the API Access tab and then click "+ New API Key." The key you create needs the following stuff enabled:
+
+        wallet:accounts:read 
+        wallet:accounts:update 
+        wallet:buys:create 
+        wallet:buys:read 
+        wallet:payment-methods:read 
+        wallet:sells:create 
+        wallet:sells:read
+
+After they are created, you will run the code below (see the next section) and copy-paste them into the terminal. That is the ONLY time you will have the API keys available for viewing or stealing, and immediately after they are pasted into the terminal, they will be encrypted and stored.
+
 # To run:
 
 Download, run Oracle.py once to start and then set up Oracle.py to run once an hour using cron or Windows Task Manager (see below). Then get your API keys handy from Coinbase and run Trader.py. First time users will be prompted for their username, then their API keys, and then prompted for a password. The code will ask you for some user preferences: 
