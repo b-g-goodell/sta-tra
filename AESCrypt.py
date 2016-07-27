@@ -41,13 +41,13 @@ class AESCrypt(object):
         return self.decrypt(ciphertext, key, mode)
 
     @staticmethod
-    def hash_passphrase(self, passphrase, salt, bits_to_read=32):
+    def hash_passphrase(passphrase, salt, bits_to_read=32):
         assert salt != None
         key = PBKDF2(passphrase, salt).read(bits_to_read)
         return key
 
     @staticmethod
-    def _unpad(self, s):
+    def _unpad(s):
         pad_val = -ord(s[len(s)-1:])
         return s[:pad_val:]
 
