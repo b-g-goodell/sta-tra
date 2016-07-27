@@ -107,7 +107,7 @@ class Trader(object):
     def _user_login(self):
         alfred = API_Key_Manager()
         api_keys = None
-        login_successful, username, api_keys = alfred.get_api_keys
+        login_successful, username, api_keys = alfred.get_api_keys()
         self.wallet = None
         #print login_successful, username, api_keys
         if api_keys is not None and login_successful:
