@@ -35,11 +35,11 @@ Download, run Oracle.py once to start and then set up Oracle.py to run once an h
 1. What percentage change in bitcoin price should trigger an action? For example, if you want to rebalance if the price moves by more than 3%, then your input should be 0.03. I usually use 0.05; in order to clear fees, we recommend values above 0.01.
 2. What confidence level do we want to use when drawing our trendlines? For example, if you want 99% confidence intervals, then your input should be 0.99. I usually use 0.99, but this is largely a cosmetic choice from our experiences.
 3. Of all the bitcoin accounts/wallets that Coinbase has on file for you, which bitcoin account/wallet on Coinbase would you like to trade with? I have a separate bitcoin account/wallet set up on Coinbase specifically for trading.
-4. Of all the payment methods that Coinbase has on file for you, Which payment method would you like to use? I use their USD Wallet in order to ensure "instant" transactions and to prevent overdraft fees from a bank if the code goes wonky.
-5. Of all the bitcoin in your selected account/wallet, how much do you want to be actively trading with? We can verify your account balances with Coinbase, so you can be a little sloppy with this number without getting totally fucked.
+4. Of all the payment methods that Coinbase has on file for you, which payment method would you like to use? I strongly recommend that you use the USD Wallet in order to ensure "instant" transactions and to prevent overdraft fees from a bank if the code goes wonky. Besides, since the code works continuously (every few seconds, actually), anything less than instant transactions is a recipe for disaster, so ... just use the USD wallet.
+5. Of all the bitcoin in your selected account/wallet, how much do you want to be actively trading with? We can verify this account balance with Coinbase, so you can be a little sloppy with this number without getting totally fucked.
 6. Of your USD funds from your payment method, how much are you willing to gamble/flush down the toilet with this code? We cannot verify this number at all, so we recommend very carefully answering. If you provide an answer that will cause you to overdraft or get your credit card declined, that's your problem, not ours. This is why we prefer using the Coinbase USD Wallet if possible.
 
-After that, everything should take off.
+After that, everything should take off. As a side note, to elaborate on number 6 above, if you do decide to use credit or debit card transactions (which, as of August 1 of 2016, can be instant transactions)...  then we have no way of verifying your account balance through Coinbase. The code could easily make a buy action (or many) that maxes your credit card, or drains your bank account. Please use the USD wallet.
 
 # Different Operating Systems
 
