@@ -48,9 +48,9 @@ class Trader(object):
         assert self.wallet is not None
 
         # Retrieve trend parameters
-        with open(self.trigger_filename, "r") as trigger_file:
-            trigger_parameters = trigger_file.read()
-        [self.k, self.sample_size, self.time_mean, self.log_y_mean, self.slope] = [float(x) for x in trigger_parameters.rstrip().split()]
+        #with open(self.trigger_filename, "r") as trigger_file:
+        #    trigger_parameters = trigger_file.read()
+        #[self.k, self.sample_size, self.time_mean, self.log_y_mean, self.slope] = [float(x) for x in trigger_parameters.rstrip().split()]
 
         # Load any unmatched buys and sells written to file into mem
         self._load_unmatched()
@@ -325,9 +325,11 @@ class Trader(object):
         #            ).split()]
         with open(self.trigger_filename, "r") as trigger_file:
             trigger_parameters = trigger_file.read()
+            #print trigger_parameters
         [self.k, self.sample_size, self.t_mean, self.y_mean, \
             self.slope] = [float(x) for x in trigger_parameters.rstrip( \
             ).split()]
+        #print "Testing trigger price: ", math.exp(self.y_mean)
 
         alpha = (1.0-self.user_preferences['percentile'])/2.0
         df = self.sample_size - 1
@@ -335,6 +337,8 @@ class Trader(object):
 
         trend_buy_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))-self.k*t_score) #/(1.0+self.user_preferences['change_trigger'])
         trend_sell_trig = math.exp((self.y_mean + self.slope*(this_time - self.t_mean))+self.k*t_score) #*(1.0+self.user_preferences['change_trigger'])
+        #print "Trend buy trigger: ", trend_buy_trig
+        #print "Trend_sell_trigger: ", trend_sell_trig
 
         if max_old_sell is not None:
             sell_trigger_new = max(trend_sell_trig, max_old_sell*(1.0+self.user_preferences['change_trigger']))
@@ -425,7 +429,7 @@ class Trader(object):
             print "Error, tried to sell only " + str(usd_amt) + " in USD, which is " + str(btc_amt) + " in BTC... try a larger bankroll. Continuing..."
         
         # Let's issue the sell order, uncommitted...
-        s = self.wallet.sell( self.user_preferences['commodity_acct'].id, amount=btc_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
+        s = self.wallet.sell( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
         
         # Let's compute the price we got.
         actual_price = None
