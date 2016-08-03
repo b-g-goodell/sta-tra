@@ -312,17 +312,22 @@ class Trader(object):
         else:
             min_old_buy = None
 
-        should_pull_data = (self.k is None) or \
-                           (self.sample_size is None) or \
-                           (self.y_mean is None) or \
-                           (self.slope is None) or \
-                           (int(this_time) % 180 == 0)
-        if should_pull_data:
-            with open(self.trigger_filename, "r") as trigger_file:
-                trigger_parameters = trigger_file.read()
-                [self.k, self.sample_size, self.t_mean, self.y_mean, \
-                    self.slope] = [float(x) for x in trigger_parameters.rstrip( \
-                    ).split()]
+        #should_pull_data = (self.k is None) or \
+        #                   (self.sample_size is None) or \
+        #                   (self.y_mean is None) or \
+        #                   (self.slope is None) or \
+        #                   (int(this_time) % 180 == 0)
+        #if should_pull_data:
+        #    with open(self.trigger_filename, "r") as trigger_file:
+        #        trigger_parameters = trigger_file.read()
+        #        [self.k, self.sample_size, self.t_mean, self.y_mean, \
+        #            self.slope] = [float(x) for x in trigger_parameters.rstrip( \
+        #            ).split()]
+        with open(self.trigger_filename, "r") as trigger_file:
+            trigger_parameters = trigger_file.read()
+        [self.k, self.sample_size, self.t_mean, self.y_mean, \
+            self.slope] = [float(x) for x in trigger_parameters.rstrip( \
+            ).split()]
 
         alpha = (1.0-self.user_preferences['percentile'])/2.0
         df = self.sample_size - 1
