@@ -27,10 +27,7 @@ class Oracle(object):
         self.alpha = 2.0*(1.0-self.percentile)
         self.trigger_filename = self.self_path + "/data/" + fn
         self.data = {'time_data': None, 'price_data': None}
-        #self.data['time_data'] = None
-        #self.data['price_data'] = None
         self.sample_size = None
-        self._find_good_sample_size()
         pred = self.get_prediction()
         self._write_prediction(pred)
 
@@ -96,51 +93,63 @@ class Oracle(object):
     def _find_good_sample_size(self, max_num_hours=168):
         """ Find an optimal sample size (number of hours) to take data"""
         print "Finding sample size. Please wait..."
+        
+        # Coinbase lets us pull up to the past 168 hours of pricing info
+        # which would be the max_num_hours, and we need a range so we
+        # pick the min_num_hours because variance is useless as a
+        # statistic with too small a sample size. Arguably this is
+        # already too small.
         min_num_hours=11
+        
+        # Pull data off the web.
+        self._pull_data()
+        
+        # Initialize our crap
         best_snr = None
         pref_length = None
-        self._pull_data()
+        
+        # In this loop, we compute the sample size that maximizes
+        # the normalized signal-noise ratio.
         for i in range(min_num_hours, max_num_hours):
             next_snr = self._get_snr(i)
             if best_snr is None or next_snr > best_snr:
                 best_snr = next_snr
                 pref_length = i
-                print "Best snr so far is ", best_snr, " with preferred sample size ", pref_length
             print "Best snr so far comes with sample_size ", pref_length, " checking sample_size = ", (i+1), " next."
+        
+        # This is our sample_size that maximizes as described above.
         self.sample_size = pref_length # Number of hours, sample size...
         print "We've determined we should use ", self.sample_size, " hours worth of samples."
-        #self._pull_data(number_hours=self.sample_size)
+        
+        # Store data into self.data
         self.data['time_data'] = self.data['time_data'][-self.sample_size:]
         self.data['price_data'] = self.data['price_data'][-self.sample_size:]
         pass
 
     def _get_linear_trend(self,number_hours=168):
-        """ Find a linear trend of self.data """
+        """ Find a linear trend of self.data using the solution to the 
+        normal equations (see wikipedia or something)... this is the 
+        Ordinary-Least-Squares (OLS) linear fit.
+        """
         # First let's center our data:
         y_mean = self._get_mean(self.data['price_data'])
         t_mean = self._get_mean(self.data['time_data'])
         translated_t_data = [x - t_mean for x in self.data['time_data']]
         translated_y_data = [x - y_mean for x in self.data['price_data']]
 
-        # Next we project y_data onto time_data:
-        # First we compute the unit time vector:
+        # We compute the unit time vector:
         t_len = self._get_length_of_vector(translated_t_data)
         unit_t_data = [x/t_len for x in translated_t_data]
+        
+        # We project y_data onto time_data:
         scalar_product = self._get_dot_product(translated_y_data, unit_t_data)
+        
+        # The OLS best fit slope is then...
         best_fit_slope = scalar_product/t_len
-        #print best_fit_slope
-
+        
+        # Compute the residuals
         z_data = [translated_y_data[i] - best_fit_slope*translated_t_data[i] for i in range(len(translated_y_data))]
-        #z_mean = self._get_mean(z_data)
-        #print z_data, len(z_data), z_mean
-
         results = (t_mean, y_mean, best_fit_slope, z_data)
-        #z_data = residuals
-
-        #except ValueError:
-        #    "Error in pull_history, no JSON object could be decoded."
-        #except requests.exceptions.ConnectionError:
-        #    "Error: requests.exceptions.ConnectionError thrown for some reason. Passing through."
         return results
 
     def _get_snr(self, sampleSize):
