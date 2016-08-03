@@ -45,26 +45,51 @@ class Oracle(object):
             line = str(k) + "\t" + str(sample_size) + "\t" + str(t_mean) + "\t" + str(y_mean) + "\t" + str(slope)
             temp_file.write(line)
 
-    def pull_data(self,number_hours=168):
+    def _pull_data(self,number_hours=168):
         """ Pull hourly pricing data from coinbase """
         url = self.history_url + '?hours=' + str(number_hours)
         #results = None
         self.data['time_data'] = []
         self.data['price_data'] = []
-
+        
+        successful = False
+        
+        # In the following loop, we repetitively try to pull hourly
+        # pricing information from coinbase. In heavy load times, 
+        # this can return an error rather than our desired data, so
+        # We will try every few seconds until successful.
+        x = None
+        count = 0 
+        while not successful and count <10:
+            print "Pulling data..."
+            count += 1
+            try:
+                x = requests.get(url, timeout=22).json()
+            except:
+                print "Error in _pull_data, no JSON object was returned from requests.get(url).json()"
+            print "Pull seemed to succeed. Computing if errors included in pull."
+            successful = (x is not None) and (u'errors' not in x) and (u'data' in x)
+            if not successful:
+                print "Woops, something went wrong. Pulling data again in a little over 3 seconds."
+                time.sleep(3.05)
         try:
-            x = requests.get(url).json()
-        except ValueError:
-            print "Error, no JSON object was returned from requests.get(url).json()"
-
-        p = x[u'data'][u'prices']
+            assert successful
+        except AssertionError:
+            print "Error in _pull_data, we exited a while loop prematurely for some reason!"
+        print "Successfully pulled data..."
+        # Now we will set self.data to the last 168 hours of data after
+        # a bit of pre-processing.
+        p = x[u'data'][u'prices'] # p is for prices
         temp_data = []
         for point in p:
             timepoint = float(calendar.timegm(time.strptime(point[u'time'].replace("-", "").replace("Z", ""), \
                 "%Y%m%dT%H:%M:%S")))
             value_point = math.log(float(point[u'price']))
             temp_data.append((timepoint,value_point))
+        
+        # Sort by timestamp
         temp_data = sorted(temp_data, key = lambda x:x[0])
+        #print temp_data
         self.data['time_data'] = [x[0] for x in temp_data]
         self.data['price_data'] = [x[1] for x in temp_data]
 
@@ -74,25 +99,23 @@ class Oracle(object):
         min_num_hours=11
         best_snr = None
         pref_length = None
-        if self.sample_size is None:
-            for i in range(min_num_hours, max_num_hours):
-                #data_to_add = []
-                self.pull_data(number_hours=i)
-                next_snr = self._get_snr()
-                #print "Trying ", str(num_hours), " hours, found SNR of ", next_snr
-                if best_snr == None or next_snr > best_snr:
-                    best_snr = next_snr
-                    pref_length = i
-                    print "Best snr so far is ", best_snr, " with preferred sample size ", pref_length
-                print "Best snr so far comes with sample_size ", pref_length, " checking sample_size = ", (i+1), " next."
-            self.sample_size = pref_length # Number of hours, sample size...
+        self._pull_data()
+        for i in range(min_num_hours, max_num_hours):
+            next_snr = self._get_snr(i)
+            if best_snr is None or next_snr > best_snr:
+                best_snr = next_snr
+                pref_length = i
+                print "Best snr so far is ", best_snr, " with preferred sample size ", pref_length
+            print "Best snr so far comes with sample_size ", pref_length, " checking sample_size = ", (i+1), " next."
+        self.sample_size = pref_length # Number of hours, sample size...
         print "We've determined we should use ", self.sample_size, " hours worth of samples."
-        self.pull_data(number_hours=self.sample_size)
+        #self._pull_data(number_hours=self.sample_size)
+        self.data['time_data'] = self.data['time_data'][-self.sample_size:]
+        self.data['price_data'] = self.data['price_data'][-self.sample_size:]
         pass
 
     def _get_linear_trend(self,number_hours=168):
-        """ Pull hourly pricing data from coinbase """
-        self.pull_data(number_hours)
+        """ Find a linear trend of self.data """
         # First let's center our data:
         y_mean = self._get_mean(self.data['price_data'])
         t_mean = self._get_mean(self.data['time_data'])
@@ -120,16 +143,18 @@ class Oracle(object):
         #    "Error: requests.exceptions.ConnectionError thrown for some reason. Passing through."
         return results
 
-    def _get_snr(self):
-        y_mean = self._get_mean(self.data['price_data'])
-        y_stdev = self._get_stdev(self.data['price_data'])
-        y_n = len(self.data['price_data'])
-        result = y_mean*((y_n-1)**0.5)/y_stdev
+    def _get_snr(self, sampleSize):
+        """ This finds the sample size that maximizes a normalized 
+        signal-noise ratio statistic.
+        """
+        y_mean = self._get_mean(self.data['price_data'][-sampleSize:])
+        y_stdev = self._get_stdev(self.data['price_data'][-sampleSize:])
+        result = y_mean*((sampleSize-1)**0.5)/y_stdev
         return result
 
     def get_prediction(self):
-        # self._find_good_sample_size()
-        result = self._get_linear_trend(number_hours=self.sample_size)
+        self._find_good_sample_size()
+        result = self._get_linear_trend()
         noise = result[3]
 
         sample_mean_of_noise = self._get_mean(noise)
@@ -168,6 +193,14 @@ class Oracle(object):
     def _get_mean(data):
         s = 0.0
         # print len(data)
+        try:
+            assert len(data) > 0
+        except AssertionError:
+            print "Error in _get_mean: possible array of length zero"
+        try:
+            assert data is not None
+        except AssertionError:
+            print "Error in _get_mean: trying to find mean of None"
         for d in data:
             s += d
         # print "sum: ", s
