@@ -487,7 +487,9 @@ class Trader(object):
                     # In this case, a pair is possible. So we use the
                     # _pair function with the buy and sell in chrono-
                     # logical order.
-                    if float(this_buy['created_at']) < float(this_sell['created_at']):
+                    buy_time = datetime.datetime.strptime(this_buy['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+                    sell_time = datetime.datetime.strptime(this_sell['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+                    if buy_time < sell_time:
                         change = self._pair(this_buy, this_sell)
                     else:
                         change = self._pair(this_sell, this_buy)
