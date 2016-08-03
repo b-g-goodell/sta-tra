@@ -479,7 +479,7 @@ class Trader(object):
                 # possible, either the buy or the sell will be bigger,
                 # and the leftover is `change` as in `making change`
                 change = None
-                if this_buy['cost_basis']*(1.0 + self.user_preferences['change_trigger']) >= this_sell['cost_basis']:
+                if float(this_buy['cost_basis'])*(1.0 + self.user_preferences['change_trigger']) >= float(this_sell['cost_basis']):
                     # In this case, a pair is not possible, so we put
                     # this_sell into a temporary sell queue.
                     temp_sell_q.append(this_sell)
@@ -487,7 +487,7 @@ class Trader(object):
                     # In this case, a pair is possible. So we use the
                     # _pair function with the buy and sell in chrono-
                     # logical order.
-                    if this_buy['created_at'] < this_sell['created_at']:
+                    if float(this_buy['created_at']) < float(this_sell['created_at']):
                         change = self._pair(this_buy, this_sell)
                     else:
                         change = self._pair(this_sell, this_buy)
