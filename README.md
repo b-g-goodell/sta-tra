@@ -22,11 +22,11 @@ I usually use the default folder, and I generate passphrases using LastPass. To 
 
         cat ~/.ssh/id_rsa.pub
 
-which I then copy-paste into the DigitalOcean SSH key prompt. I can then simply use
+which I then copy-paste into the DigitalOcean SSH key prompt. We use
 
         ssh root@ip.address.here
         
-To ssh into the droplet.
+to ssh into the droplet as root, and then we create a new user, add it to the sudo group, and generate ssh keys for that new user. Then rather than loggin in as root, log in as the local user.
 
 # Coinbase API keys
 
