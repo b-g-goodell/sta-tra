@@ -12,6 +12,22 @@ What's worked for me is to use the following:
 
 Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
 
+# SSH Keys and DigitalOcean
+
+I recommend running this on some sort of cloud based service (AWS or DigitalOcean or something). I spun up a droplet using instructions [from here](https://www.digitalocean.com/community/tutorials/how-to-create-your-first-digitalocean-droplet-virtual-server), generated my SSH keys using
+
+        ssh-keygen -t rsa
+
+I usually use the default folder, and I generate passphrases using LastPass. To get my SSH keys I use
+
+        cat ~/.ssh/id_rsa.pub
+
+which I then copy-paste into the DigitalOcean SSH key prompt. We use
+
+        ssh root@ip.address.here
+        
+to ssh into the droplet as root, and then we create a new user, add it to the sudo group, and generate ssh keys for that new user. Then rather than loggin in as root, log in as the local user.
+
 # Coinbase API keys
 
 I don't recommend that you enable any API keys ever, because that's a surefire way to accidentally lose all your money. But if you want to run my code, you gotta. I strongly recommend enabling 2-factor authentication before doing so (not that 2FA will help if someone gets ahold of your keys...) This code will encrypt those keys before storing them locally, but merely having API keys enabled is technically a security risk. Be forewarned.
