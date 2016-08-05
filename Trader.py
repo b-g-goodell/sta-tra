@@ -56,11 +56,7 @@ class Trader(object):
         # Load any unmatched buys and sells written to file into mem
         self._load_unmatched()
 
-        count = 0
-        #while count < self.max_runs:
         while True:
-            # Repeat self.max_runs times
-            count += 1
             # Measure time at start of each loop
             this_time = time.time()
             #print this_time
@@ -268,14 +264,61 @@ class Trader(object):
         pass
 
     def _load_unmatched(self):
-        if os.path.isfile(self.unmatched_filename):
-            with open(self.unmatched_filename, "r") as unmatched_file:
-                data = unmatched_file.readlines()
-            if len(data) > 0:
-                for line in data:
-                    line = line.rstrip()
-                    line = line.split("\t")
-                    self._add_action(line)
+        if os.path.isfile(self.log_filename):
+            with open(self.log_filename, "r") as log_file:
+               dump = log_file.read()
+            assert dump is not None
+            dump = dump.split("status, created")
+            history = []
+            for d in dump:
+                d_amt = None
+                d_tot = None
+                d_res = None
+                d_time = None
+                d = d.strip().split("\n")
+                for thingy in d:
+                    split_thingy = thingy.split(",")
+                    if 'resource'==split_thingy[0]:
+                        d_res = split_thingy
+                    if 'amount' in thingy:
+                        d_amt = split_thingy
+                    if 'total' in thingy and 'subtotal' not in thingy:
+                        d_tot = split_thingy
+                    if 'created_at' in thingy:
+                        d_time = split_thingy
+                if d_amt is not None and d_tot is not None:
+                    history.append([d_res, d_amt, d_tot, d_time])
+            clean_history = []
+            for thingy in history:
+                resource_type = thingy[0][1] # String = 'buy' or 'sell'
+                btc_amt = float((thingy[1][1].split())[1]) # Float with btc amount
+                usd_amt = float((thingy[2][1].split())[1]) # Float with usd amount
+                created_at = thingy[3][1].strip() # apply datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") to get a datetime object
+                clean_history.append([resource_type, usd_amt/btc_amt, btc_amt, created_at])
+                
+            ####RECALL!####
+            # Format of this_buy is a dictionary:
+            # 'key': 'value'
+            # 'amount': amount in bitcoin, string containing float
+            # 'cost_basis': price of bitcoin (usd/btc), string containing float
+            # 'created_at': string with format "%Y-%m-%dT%H:%M:%SZ"
+            # 'type': string = 'buy' or 'sell'
+            ###############
+            for item in clean_history:
+                if 'buy' in item[0]:
+                    this_buy = {'amount': None, 'cost_basis': None, 'created_at': None, 'type': 'buy'}
+                    this_buy['amount'] = str(item[2])
+                    this_buy['cost_basis'] = str(item[1])
+                    this_buy['created_at'] = str(item[3])
+                    self.buy_q.append(this_buy)
+                elif 'sell' in item[0]:
+                    this_sell = {'amount': None, 'cost_basis': None, 'created_at': None, 'type': 'sell'}
+                    this_sell['amount'] = str(item[2])
+                    this_sell['cost_basis'] = str(item[1])
+                    this_sell['created_at'] = item[3]
+                    self.sell_q.append(this_sell)
+            self._update_records()
+            
 
     def _add_action(self, line):
         #print line
@@ -288,17 +331,7 @@ class Trader(object):
             self.buy_q.append(new_action)
         elif new_action['type'] == 'sell':
             self.sell_q.append(new_action)
-        #print entry
-        #print entry[0]
-        #new_action = {}
-        #for entry in line:
-        #	new_action[entry[0]] = entry[1]
-        #print new_action.keys()
-        #if new_action['type'] == 'buy':
-        #	self.buy_q.append(new_action)
-        #elif new_action['type'] == 'sell':
-        #	self.sell_q.append(new_action)
-
+        pass
 
     def _compute_trigger_window(self):
         this_time = time.time()
@@ -466,85 +499,179 @@ class Trader(object):
         else:
             resulting_sell = {}
         return result, resulting_sell
-
+        
     def _make_pairs(self):
+        pair_q = deque()
         temp_buy_q = deque()
         temp_sell_q = deque()
         while len(self.buy_q) > 0:
             # Take buys out of queue in order and store them as this_buy
             this_buy = self.buy_q.popleft()
+            #print this_buy 
             while len(self.sell_q) > 0 and this_buy is not None:
                 # Take sells out of queue in order, store as this_sell
                 this_sell = self.sell_q.popleft()
+                #print this_sell
                 # Set the `change` object to None... if a pairing is
                 # possible, either the buy or the sell will be bigger,
                 # and the leftover is `change` as in `making change`
                 change = None
                 if float(this_buy['cost_basis'])*(1.0 + self.user_preferences['change_trigger']) >= float(this_sell['cost_basis']):
+                    #print "No pair possible"
                     # In this case, a pair is not possible, so we put
                     # this_sell into a temporary sell queue.
                     temp_sell_q.append(this_sell)
                 else:
-                    # In this case, a pair is possible. So we use the
-                    # _pair function with the buy and sell in chrono-
-                    # logical order.
-                    buy_time = datetime.datetime.strptime(this_buy['created_at'], "%Y-%m-%dT%H:%M:%SZ")
-                    sell_time = datetime.datetime.strptime(this_sell['created_at'], "%Y-%m-%dT%H:%M:%SZ")
-                    if buy_time < sell_time:
-                        change = self._pair(this_buy, this_sell)
+                    print "pair possible!"
+                    # In this case, a pair is possible. So we compute a
+                    # change object, a buy object, and a sell object,
+                    # and we put them into a pairs queue.
+                    
+                    # If the change object is a sell, we put it into the
+                    # temp_sell_queue. If the change object is a buy,
+                    # we set this_buy to the change object and move 
+                    # onto the next sell.
+                    
+                    # Format of change object: 
+                    # [cost_basis, amt_in_btc, datetime, change_type]
+                    # where change_type = 'buy' or 'sell'
+                    change = []
+                    
+                    # Format of pair object:
+                    # [change, pair_type, first_action, second_action]
+                    # where change = change object above
+                    # where first_action is either a buy or a sell
+                    
+                    pair = []
+                    cost_basis = None
+                    amt = None
+                    created_at = None 
+                    change_type = None
+                    
+                    #### First we compute the change object ####                  
+                    # Compare amounts of the transactions. If the buy
+                    # is bigger than the sell, then change will be a buy
+                    # otherwise change will be a sell
+                    if float(this_buy['amount']) > float(this_sell['amount']):
+                        # Find traits of change object
+                        # In this case, change is a buy because
+                        # we bought more bitcoin than we sold
+                        cost_basis = this_buy['cost_basis']
+                        amt = str(float(this_buy['amount']) - float(this_sell['amount']))
+                        created_at = this_buy['created_at']
+                        change_type = 'buy'
                     else:
-                        change = self._pair(this_sell, this_buy)
-
-                    # We have a `change` thingy, which is either a buy
-                    # or a sell. If it's a buy, simply set this_buy
-                    # to the change and clear out this_sell. If change
-                    # is a sell, then we put the change into the temp
-                    # sell queue and clear out this_buy.
-                    if change['type'] == 'buy':
-                        this_buy = change
+                        # Find traits of change object
+                        # In this case, change is a sell because
+                        # we sold more bitcoin than we bought
+                        cost_basis = this_sell['cost_basis']
+                        amt = str(float(this_sell['amount']) - float(this_buy['amount']))
+                        created_at = this_sell['created_at']
+                        change_type = 'sell'
+                        
+                    assert cost_basis is not None
+                    assert amt is not None
+                    assert created_at is not None
+                    change = [cost_basis, amt, created_at, change_type]
+                    print pair
+                    pair.append(change)
+                    print pair
+                    
+                    #### Next we compute the pair object ####
+                    buy_obj = [this_buy['cost_basis'], this_buy['amount'], this_buy['created_at']]
+                    sell_obj = [this_sell['cost_basis'], this_sell['amount'], this_sell['created_at']]
+                    
+                    buy_time = datetime.datetime.strptime(this_buy['created_at'].strip(), "%Y-%m-%dT%H:%M:%SZ")
+                    sell_time = datetime.datetime.strptime(this_sell['created_at'].strip(), "%Y-%m-%dT%H:%M:%SZ")
+                    
+                    # Compare order of transactions
+                    if buy_time < sell_time: 
+                        # The buy happened first
+                        pair.append("Buy low sell high")
+                        pair.append(buy_obj)
+                        pair.append(sell_obj)
+                    else:
+                        pair.append("Sell high buy low")
+                        pair.append(sell_obj)
+                        pair.append(buy_obj)
+                    print pair
+                    pair_q.append(pair)
+                    print "\n======Pair queue so far=======\n"
+                    for p in pair_q:
+                        print p
+                    print "\n======End of pair queue=======\n"
+                    
+                    ####RECALL!####
+                    # Format of pair is a list of lists:
+                    # pair = [change_list, pair_type, first_action_list, second_action_list]
+                    # where change_list is a list with
+                    #    change[0] = cost_basis
+                    #    change[1] = amt_in_btc
+                    #    change[2] = datetime
+                    #    change[3] = change_type
+                    # where pair_type is actually not a list, just a string
+                    #    pair_type = "buy low sell high" or "sell high buy low"
+                    # where first_action_list follows the format of this_buy
+                    # above, and so does second_action_list
+                    ###############
+                    
+                    if change_type == 'buy':
+                        this_buy['cost_basis'] = change[0]
+                        this_buy['amount'] = change[1]
+                        this_buy['created_at'] = change[2]
+                        this_buy['type'] = 'buy'
                         this_sell = None
                     else:
                         this_buy = None
-                        temp_sell_q.append(change)
-            # Cases: this_buy is None or this_buy is change.
-            # If this_buy is change, then we simply throw it into
-            # the temp_buy_q. Either way, we want to merge the
-            # temp_sell_q with the sell_q. 
-            if this_buy is not None:
-                temp_buy_q.append(this_buy)
+                        temp_dict = {'cost_basis': None, 'amount': None, 'created_at': None, 'type': None}
+                        temp_dict['cost_basis'] = change[0]
+                        temp_dict['amount'] = change[1]
+                        temp_dict['created_at'] = change[2]
+                        temp_dict['type'] = 'sell'
+                        temp_sell_q.append(temp_dict)
+            
+            # At this point, we have left the while looping sells, so
+            # either this_buy is None (so we have fully paired this_buy)
+            # or this_buy is not None and we have exhausted the sells
+            # without finding a pair for this_buy.
+            
+            # If this_buy is not None, we want to throw it into the
+            # temp buy queue.
+            
+            # No matter what, we want to merge the temp_sell_q and the sell_q
             while len(temp_sell_q) > 0:
                 self.sell_q.appendleft(temp_sell_q.pop())
-   
+            if this_buy is not None:
+                temp_buy_q.append(this_buy)
+            
         # Now we merge the temp buy queue with the buy queue as above.
         while len(temp_buy_q) > 0:
             self.buy_q.appendleft(temp_buy_q.pop())
+        
+        # Format of pair (list) object in pair_q:
+        #   pair[0] = change object = [cost_basis, amt, created_at, change_type]
+        #   pair[1] = pair type = "Buy low sell high" or "Sell high buy low"
+        #   pair[2] = first_action
+        #   pair[3] = second_action
+        # where both actions are lists with
+        #   pair[2][0] = cost basis, string containing float
+        #   pair[2][1] = amount in btc, string containing float,
+        #   pair[2][2] = timestamp string with format "%Y-%m-%dT%H:%M:%SZ"
+        # and similarly for pair[3], but opposite type of transaction
+        if len(pair_q) > 0:
+            with open(self.pair_filename, "w") as pair_file:
+                for pair in pair_q:
+                    data_to_write = ""
+                    data_to_write += pair[1] + ", "
+                    data_to_write += pair[2][0] + ", " + pair[2][1] + ", " + pair[2][2] + ", "
+                    data_to_write += pair[3][0] + ", " + pair[3][1] + ", " + pair[3][2] + ", "
+                    data_to_write += pair[0][0] + ", " + pair[0][1] + ", " + pair[0][2] + ", " + pair[0][3] + "\n"
+                    pair_file.write(data_to_write)
         pass
-
-
-    def _pair(self, action_1, action_2):
-        change = {}
-        data_to_write = ""
-        assert action_1['created_at'] <= action_2['created_at']
-        cash_1 = float(action_1['amount'])*float(action_1['cost_basis'])
-        cash_2 = float(action_2['amount'])*float(action_2['cost_basis'])
-        if action_1['amount'] <= action_2['amount']:
-            change['amount'] = float(action_2['amount']) - float(action_1['amount'])
-            change['cost_basis'] = (cash_2 - cash_1)/change['amount']
-            change['created_at'] = action_2['created_at']
-            change['type'] = action_2['type']
-            data_to_write = action_1['type'] + "\t" + action_1['created_at'] + "\t" + action_2['type'] + "\t" + action_2['created_at'] + "\t" + str(action_1['amount']) + "\t" + str(action_1['cost_basis']) + "\t" + str(action_2['cost_basis']) + "\n"
-        else:
-            change['amount'] = float(action_1['amount']) - float(action_2['amount'])
-            change['cost_basis'] = (cash_1 - cash_2)/change['amount']
-            change['created_at'] = action_1['created_at']
-            change['type'] = action_1['type']
-            data_to_write = action_1['type'] + "\t" + action_1['created_at'] + "\t" + action_2['type'] + "\t" + action_2['created_at'] + "\t" + str(action_2['amount']) + "\t" + str(action_1['cost_basis']) + "\t" + str(action_2['cost_basis']) + "\n"
-        with open(self.pair_filename, "a") as pair_file:
-            pair_file.write(data_to_write)
-        return change
 
     def _update_records(self):
         """ Update written file of unmatched buys and sells. """
+        self._make_pairs()
         with open(self.unmatched_filename, "w") as unmatched_file:
             for buy in self.buy_q:
                 newline = ""
