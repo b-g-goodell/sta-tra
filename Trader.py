@@ -506,26 +506,19 @@ class Trader(object):
                     else:
                         this_buy = None
                         temp_sell_q.append(change)
-            # Okay, now we've exhausted the sell queue or we matched
-            # this_buy. Either way, we want to go on to the next buy.
-            # If we have matched this_buy then we have a temp
-            # sell queue and self.sell_q which we must merge in order
-            # before we look at the next buy in the buy_queue for match.
-            # On the other hand, if we have exhausted the sell queue,
-            # then the temporary sell queue is (possibly) full and
-            # we use this as self.sell_q before we look at the next
-            # buy in the buy queue.
-            if this_buy is None:
-                while len(temp_sell_q) > 0:
-                    self.sell_q.appendleft(temp_sell_q.pop())
-            else:
+            # Cases: this_buy is None or this_buy is change.
+            # If this_buy is change, then we simply throw it into
+            # the temp_buy_q. Either way, we want to merge the
+            # temp_sell_q with the sell_q. 
+            if this_buy is not None:
                 temp_buy_q.append(this_buy)
-                self.sell_q = temp_sell_q
-                temp_sell_q = deque()
-            # No matter what at this point, the self.sell_q has not
-            # lost any information unless matches have occurred.
-        # Okay, now we've exhaused the buy queue, and we have temp_buy_q
-        self.buy_q = temp_buy_q
+            while len(temp_sell_q) > 0:
+                self.sell_q.appendleft(temp_sell_q.pop())
+   
+        # Now we merge the temp buy queue with the buy queue as above.
+        while len(temp_buy_q) > 0:
+            self.buy_q.appendleft(temp_buy_q.pop())
+        pass
 
 
     def _pair(self, action_1, action_2):
@@ -535,7 +528,7 @@ class Trader(object):
         cash_1 = float(action_1['amount'])*float(action_1['cost_basis'])
         cash_2 = float(action_2['amount'])*float(action_2['cost_basis'])
         if action_1['amount'] <= action_2['amount']:
-            change['amount'] = action_2['amount'] - action_1['amount']
+            change['amount'] = float(action_2['amount']) - float(action_1['amount'])
             change['cost_basis'] = (cash_2 - cash_1)/change['amount']
             change['created_at'] = action_2['created_at']
             change['type'] = action_2['type']
