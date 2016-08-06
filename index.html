@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Sta-tra : Encrypt your coinbase API keys and use basic statistical tools to execute buys/sells of bitcoin on Coinbase API">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Sta-tra</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/b-g-goodell/sta-tra">View on GitHub</a>
+
+          <h1 id="project_title">Sta-tra</h1>
+          <h2 id="project_tagline">Encrypt your coinbase API keys and use basic statistical tools to execute buys/sells of bitcoin on Coinbase API</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/b-g-goodell/sta-tra/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/b-g-goodell/sta-tra/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="sta-tra" class="anchor" href="#sta-tra" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>sta-tra</h1>
+
+<p>Use basic statistical tools to execute buys/sells using Coinbase API. First install dependencies (section 1), get yourself some API keys from coinbase (section 2), check out the 'To Run' instructions (section 3). If you want to ssh into DigitalOcean to run on the cloud, see section 4, and if you are trying to get stuff running on various operating systems, check out our tips in section 5. If you want to know the mathematical particulars of how decisions are made, check out section 6. Goals for the future are in section 7.</p>
+
+<h1>
+<a id="1-dependencies" class="anchor" href="#1-dependencies" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>1. Dependencies</h1>
+
+<p>We use the coinbase python library, the json library, the requests library, and scipy.</p>
+
+<p>What's worked for me is to use the following:</p>
+
+<pre><code>    sudo apt-get install git python-scipy python-pip libffi-dev libssl-dev
+    sudo pip install pyopenssl ndg-httpsclient pyasn1 coinbase pbkdf2
+</code></pre>
+
+<p>Sometimes pip gives me trouble and it appears to be resolved by adding <code>-H</code> to the pip command above.</p>
+
+<h1>
+<a id="2-coinbase-api-keys" class="anchor" href="#2-coinbase-api-keys" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>2. Coinbase API keys</h1>
+
+<p>I don't recommend that you enable any API keys ever, because that's a surefire way to accidentally lose all your money. But if you want to run my code, you gotta. I strongly recommend enabling 2-factor authentication before doing so (not that 2FA will help if someone gets ahold of your keys...) This code will encrypt those keys before storing them locally, but merely having API keys enabled is technically a security risk. Be forewarned.</p>
+
+<p>Go to Coinbase, log in, click on Settings on the sidebar on the left. Go to the API Access tab and then click "+ New API Key." The key you create needs the following stuff enabled:</p>
+
+<pre><code>    wallet:accounts:read 
+    wallet:accounts:update 
+    wallet:buys:create 
+    wallet:buys:read 
+    wallet:payment-methods:read 
+    wallet:sells:create 
+    wallet:sells:read
+</code></pre>
+
+<p>After they are created, you will run the code below (see the next section) and copy-paste them into the terminal. That is the ONLY time you will have the API keys available for viewing or stealing, and immediately after they are pasted into the terminal, they will be encrypted and stored.</p>
+
+<h1>
+<a id="3-to-run" class="anchor" href="#3-to-run" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>3. To run:</h1>
+
+<p>Download, run Oracle.py once to start and then set up Oracle.py to run once an hour using cron or Windows Task Manager (see below). Then get your API keys handy from Coinbase and run Trader.py. First time users will be prompted for their username, then their API keys, and then prompted for a password. The code will ask you for some user preferences: </p>
+
+<ol>
+<li>What percentage change in bitcoin price should trigger an action? For example, if you want to rebalance if the price moves by more than 3%, then your input should be 0.03. I usually use 0.05; in order to clear fees, we recommend values above 0.01.</li>
+<li>What confidence level do we want to use when drawing our trendlines? For example, if you want 99% confidence intervals, then your input should be 0.99. I usually use 0.99, but this is largely a cosmetic choice from our experiences.</li>
+<li>Of all the bitcoin accounts/wallets that Coinbase has on file for you, which bitcoin account/wallet on Coinbase would you like to trade with? I have a separate bitcoin account/wallet set up on Coinbase specifically for trading.</li>
+<li>Of all the payment methods that Coinbase has on file for you, which payment method would you like to use? I strongly recommend that you use the USD Wallet in order to ensure "instant" transactions and to prevent overdraft fees from a bank if the code goes wonky. Besides, since the code works continuously (every few seconds, actually), anything less than instant transactions is a recipe for disaster, so ... just use the USD wallet.</li>
+<li>Of all the bitcoin in your selected account/wallet, how much do you want to be actively trading with? We can verify this account balance with Coinbase, so you can be a little sloppy with this number without getting totally fucked.</li>
+<li>Of your USD funds from your payment method, how much are you willing to gamble/flush down the toilet with this code? We cannot verify this number at all, so we recommend very carefully answering. If you provide an answer that will cause you to overdraft or get your credit card declined, that's your problem, not ours. This is why we prefer using the Coinbase USD Wallet if possible.</li>
+</ol>
+
+<p>After that, everything should take off. As a side note, to elaborate on number 6 above, if you do decide to use credit or debit card transactions (which, as of August 1 of 2016, can be instant transactions)...  then we have no way of verifying your account balance through Coinbase. The code could easily make a buy action (or many) that maxes your credit card, or drains your bank account. Please use the USD wallet.</p>
+
+<h1>
+<a id="4-ssh-keys-and-digitalocean" class="anchor" href="#4-ssh-keys-and-digitalocean" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>4. SSH Keys and DigitalOcean</h1>
+
+<p>I recommend running this on some sort of cloud based service (AWS or DigitalOcean or something). I spun up a droplet using instructions <a href="https://www.digitalocean.com/community/tutorials/how-to-create-your-first-digitalocean-droplet-virtual-server">from here</a>, generated my SSH keys using</p>
+
+<pre><code>    ssh-keygen -t rsa
+</code></pre>
+
+<p>I usually use the default folder, and I generate passphrases using LastPass. To get my SSH keys I use</p>
+
+<pre><code>    cat ~/.ssh/id_rsa.pub
+</code></pre>
+
+<p>which I then copy-paste into the DigitalOcean SSH key prompt. We use</p>
+
+<pre><code>    ssh root@ip.address.here
+</code></pre>
+
+<p>to ssh into the droplet as root, and then we create a new user, add it to the sudo group, and generate ssh keys for that new user. Then rather than loggin in as root, log in as the local user.</p>
+
+<h1>
+<a id="5-different-operating-systems" class="anchor" href="#5-different-operating-systems" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>5. Different Operating Systems</h1>
+
+<p>I've had a surprising amount of difficulty getting this going in different settings. I've tried to summarize the methods that have worked well below:</p>
+
+<h2>
+<a id="5a-running-with-windows-10" class="anchor" href="#5a-running-with-windows-10" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>5a. Running with Windows 10</h2>
+
+<p>This has entirely been developed in Ubuntu (precise and trusty usually) so I have no idea how well it will port to windows. I also am under the impression that numpy and scipy are both a pain in the ass with Windows. So, I dunno, dual boot yourself some Ubuntu or use some Crouton for this, or use Virtualbox in windows to run Ubuntu (see below).</p>
+
+<h2>
+<a id="5b-with-virtualbox" class="anchor" href="#5b-with-virtualbox" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>5b. With Virtualbox</h2>
+
+<p>Head over to Ubuntu.com and grab yourself an Ubuntu 14.04 iso file and use Virtualbox to set up a virtual ubuntu box. Install the dependencies below, and then install guest additions. You can use the command line to do so with <code>sudo apt-get install virtualbox-guest-dkms</code> but this didn't work very well for me to get bidirectional clipboard and resolution resizing working. I had to (in the virtualbox window) click on Devices, then Insert Guest Additions CD Image. After installing, rebooting virtualbox got the clipboard and resolution working.  I then installed all the dependencies below, cloned this git repository, added Oracle to crontab, ran it once, and then started running Trader.py</p>
+
+<h2>
+<a id="5c-running-with-crouton" class="anchor" href="#5c-running-with-crouton" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>5c. Running with Crouton</h2>
+
+<h3>
+<a id="installing-crouton" class="anchor" href="#installing-crouton" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installing crouton:</h3>
+
+<p>I have had some success with unity, but I primarily use xfce. To start using crouton on your Chromebook: after entering developer mode and downloading crouton, I use:</p>
+
+<pre><code>    sudo sh ~/Downloads/crouton -r trusty -t xfce,xiwi,extension,chrome
+    sudo start xfce4
+</code></pre>
+
+<p>Make sure you are up to date with this:</p>
+
+<pre><code>    sudo sh ~/Downloads/crouton -n trusty -u
+</code></pre>
+
+<p>Despite that it seems like trusty tahr works better on my chromebook than precise pangolin, and xfce is the only version I've gotten to work so far, it's still quite janky/iffy using ctrl-alt-shift-forward/back to switch operating systems. </p>
+
+<h3>
+<a id="running-oraclepy-with-cron-in-crouton" class="anchor" href="#running-oraclepy-with-cron-in-crouton" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Running Oracle.py with cron in crouton</h3>
+
+<p>Now to get cron working.... According to <a href="https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job">dnschneid</a> crouton needs some massaging to run cron. To get cron working with crouton, I use </p>
+
+<pre><code>    sudo gedit /etc/rc.local
+</code></pre>
+
+<p>and add the line <code>exec cron</code> before the line <code>exit 0:</code> which will get cron running. Dnschneid says user level process don't work, so to add jobs we need to add them to cron at the root level. I use the command</p>
+
+<pre><code>    sudo gedit /etc/crontab
+</code></pre>
+
+<p>and add the following line to the bottom of my crontab file:</p>
+
+<pre><code>    1 * * * * root /usr/bin/python /path/to/scripts/Oracle.py
+</code></pre>
+
+<h1>
+<a id="6-mechanics" class="anchor" href="#6-mechanics" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>6. Mechanics</h1>
+
+<p>This section describes how the code actually works. It's broken into a few subsections: password management (because there's no good reason to save your API keys as a plaintext file on a computer or, worse, on a server), fundamental dynamics (to describe exactly what's going on with the price), trend-based triggers (to describe how we compute all this), and bookkeeping.</p>
+
+<h2>
+<a id="password-management-logging-in-encryption" class="anchor" href="#password-management-logging-in-encryption" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Password management, logging in, encryption:</h2>
+
+<p>All this is handled by AESCrypt.py and API_Key_Manager.py.</p>
+
+<p>A file, <code>key_manager.txt</code>, with user login info will be kept for encryption purposes. Each user's username appears, as well as the salt for hashing their password, and their hashed password (raw passwords are not stored). Additionally, two more salts are stored in this file for hashing the same password to get AES encryption/decryption keys. Why two? Coinbase API keys come in pairs (the key and the secret).</p>
+
+<p>If the username does not exist in the directory, a password is registered to them, the program prompts the user for API keys, generates salt for encrypting each key, and uses the password to encrypt those keys with the appropriate salt. The password is also hashed with some known salt, and the username, password salt, hashed password, and encryption key salts are all written to <code>key_manager.txt</code>. Thus, if a username exists in the directory, salts and hashed passwords should also be in the directory. After all that, the API keys are returned.</p>
+
+<p>If the username exists and the provided password concatenated with the salt in <code>key_manager.txt</code> hashes to the hashed password in <code>key_manager.txt</code>, the user is validated and the keys for decrypting the API info are generated, and the API keys are returned to the user.</p>
+
+<h2>
+<a id="fundamental-dynamics" class="anchor" href="#fundamental-dynamics" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Fundamental Dynamics</h2>
+
+<p>First problem: "How and when do we decide to issue <code>buy</code> or <code>sell</code> actions?" First, when the user logs in for the first time, they set the percentage change in price that triggers an action (question 1 in Section "To Run"), maybe call this <code>p</code>.  Second, We compute the minimum of all the unmatched <code>buy</code> actions on record, say <code>min_old_buy_prices</code>, and the maximum of all unmatched <code>sell</code> actions on record, say <code>max_old_sell_prices</code>. Third, we compute the trend-based triggers, say <code>trend_buy_trig</code> and <code>trend_sell_trig</code> as described below. Then we do something akin to this:</p>
+
+<pre><code>    if sell_price &gt;= min(min_old_buy_prices*(1.0 + p), max(trend_sell_trig, max_old_sell_prices*(1.0 + p)))
+            # Then we sell
+    if buy_price &lt;= max(max_old_sell_prices/(1.0 + p), min(trend_buy_trig, min_old_buy_prices/(1.0 + p)))
+            # Then we buy
+</code></pre>
+
+<p>Note: <code>trend_buy_trig</code> and <code>trend_sell_trig</code> are determined with the market information using <code>Oracle.py</code> completely independent of past trades. The idea of the above is: regardless of the market trend and history, if a chance is available to take some profit by matching an old <code>buy</code> or <code>sell</code> action with a new, dual action, we should take it. On the other hand, if we have no historical information, we should judge the recent trend of prices before making a move.</p>
+
+<h2>
+<a id="trend-based-triggers" class="anchor" href="#trend-based-triggers" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Trend-based triggers</h2>
+
+<p>The file <code>Oracle.py</code> should be run once an hour using <code>cron</code> or whatever. It pulls hourly historical pricing information from Coinbase. We determine a preferred timescale that maximizes a normalized signal-to-noise ratio (SNR) for the log of the price in <code>_find_good_sample_size</code>. That sounds technical but we do the following: for each possible timescale, <code>i</code> hours (integer), compute the average of the past <code>i</code> hours of the natural log of the price and call this <code>y_mean</code>. Also compute and the (unbiased) standard deviation of the past <code>i</code> hours, <code>y_stdev</code>, and define the SNR <code>snr = y_mean*sqrt(i)/y_stdev</code> and we choose the <code>i</code> that maximizes this ratio. Then, in <code>_get_linear_trend</code> with our preferred timescale in hand, we sample the last <code>i</code> hours of pricing information and we find the OLS best-fit line, say <code>log(trend_price) - y_mean = best_fit_slope*(time - t_mean)</code> . Then we hypothesize that deviations from this line, (residual, say <code>z_i = abs(log(price(i)) - log(trend_price))</code>) are i.i.d. zero-mean normal random variables (this assumption is false in general, and will be improved eventually).  From this and using <code>y_stdev</code>, we can generate a <code>100(1-alpha/2)</code> percent confidence interval, which we can apply to the trend to get an upper and lower bound on price. These parameters (<code>y_mean</code>, <code>t_mean</code>, <code>best_fit_slope</code>, <code>y_stdev</code>, and the residuals) are used in <code>Trader.py</code>; we call the upper and lower bounds of this window <code>trend_buy_trig</code> and <code>trend_sell_trig</code>.</p>
+
+<h2>
+<a id="bookkeeping" class="anchor" href="#bookkeeping" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Bookkeeping</h2>
+
+<p>We have <code>buy</code> actions and <code>sell</code> actions that take place on a timeline. We want to link actions into bets with a low buy and high sell. These bets will  consisting of an ordered pair <code>(action1, action2)</code>. The timestamp of <code>action1</code> always occurs before the timestamp of <code>action2</code>. If <code>action1</code> is a <code>buy</code> action then <code>action2</code> must be a <code>sell</code> action such that the net profit in USD is positive. If <code>action2</code> is a <code>sell</code> action then <code>action1</code> must be a <code>buy</code> action such that the net profit in BTC is positive. If a pair of actions are linked in such an ordered pair, so we call these actions "paired."</p>
+
+<p>As we issue actions to Coinbase and then receive confirmation of those actions, the results are added to a <code>Buy_Q</code> and a <code>Sell_Q</code> in chronological order. After an action is added to these queues, we look for possible pairs/bets following first-in-first-out rules: we will pair the earliest chronologically occurring action in either <code>Buy_Q</code> or <code>Sell_Q</code> that has a corresponding action in the opposite queue satisfying the profit condition. We de-queue the to-be-paired actions, store them into an ordered pair of the form <code>(action1, action2)</code>, and append the resulting ordered pair to a file, say <code>bet_history.csv</code> (these are resolved bets, no need to keep their information liquid).</p>
+
+<p>If an action remains in the <code>Buy_Q</code> or the <code>Sell_Q</code> for a long time, this means that the price hasn't allowed this action to be paired. This corresponds to buying high before a price drop, or selling low before a price rise. These are bad moves that we need to remember, historically, so that we can try to recover from epic bad decisions from the past. Hence, we need our current <code>Buy_Q</code> and <code>Sell_Q</code> to also be written to file after each time they are updated, say <code>Buy_Q.csv</code> and <code>Sell_Q.csv</code>. This way, each time we load the program, we pick up where we left off.</p>
+
+<h1>
+<a id="7-future-implementations" class="anchor" href="#7-future-implementations" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>7. Future implementations</h1>
+
+<p>Super long-term, we wwould like to develop some neural networks that are trained to respond to the time series. More short-term and attainable goals include (in no particular order) (i) more complicated buy/sell strategies (maybe), (ii) more statistically sophisticated time series methods of analysis (we're thinking to BLUE this), (iii) we want the code to send text messages or e-mails when actions are completed, (iv) amounts to buy/sell will be modified once we have some probabilities estimated so we can start using Kelly betting, and (v) better-than-hourly historical pricing scheme, possibly pulling and logging price every minute or every 15 minutes or whatever and storing it into a database.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Sta-tra maintained by <a href="https://github.com/b-g-goodell">b-g-goodell</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
