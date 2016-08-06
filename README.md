@@ -1,7 +1,7 @@
 # sta-tra
-Use basic statistical tools to execute buys/sells using Coinbase API.
+Use basic statistical tools to execute buys/sells using Coinbase API. First install dependencies (section 1), get yourself some API keys from coinbase (section 2), check out the 'To Run' instructions (section 3). If you want to ssh into DigitalOcean to run on the cloud, see section 4, and if you are trying to get stuff running on various operating systems, check out our tips in section 5. If you want to know the mathematical particulars of how decisions are made, check out section 6. Goals for the future are in section 7.
 
-# Dependencies
+# 1. Dependencies
 
 We use the coinbase python library, the json library, the requests library, and scipy.
 
@@ -12,23 +12,7 @@ What's worked for me is to use the following:
 
 Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
 
-# SSH Keys and DigitalOcean
-
-I recommend running this on some sort of cloud based service (AWS or DigitalOcean or something). I spun up a droplet using instructions [from here](https://www.digitalocean.com/community/tutorials/how-to-create-your-first-digitalocean-droplet-virtual-server), generated my SSH keys using
-
-        ssh-keygen -t rsa
-
-I usually use the default folder, and I generate passphrases using LastPass. To get my SSH keys I use
-
-        cat ~/.ssh/id_rsa.pub
-
-which I then copy-paste into the DigitalOcean SSH key prompt. We use
-
-        ssh root@ip.address.here
-        
-to ssh into the droplet as root, and then we create a new user, add it to the sudo group, and generate ssh keys for that new user. Then rather than loggin in as root, log in as the local user.
-
-# Coinbase API keys
+# 2. Coinbase API keys
 
 I don't recommend that you enable any API keys ever, because that's a surefire way to accidentally lose all your money. But if you want to run my code, you gotta. I strongly recommend enabling 2-factor authentication before doing so (not that 2FA will help if someone gets ahold of your keys...) This code will encrypt those keys before storing them locally, but merely having API keys enabled is technically a security risk. Be forewarned.
 
@@ -44,7 +28,7 @@ Go to Coinbase, log in, click on Settings on the sidebar on the left. Go to the 
 
 After they are created, you will run the code below (see the next section) and copy-paste them into the terminal. That is the ONLY time you will have the API keys available for viewing or stealing, and immediately after they are pasted into the terminal, they will be encrypted and stored.
 
-# To run:
+# 3. To run:
 
 Download, run Oracle.py once to start and then set up Oracle.py to run once an hour using cron or Windows Task Manager (see below). Then get your API keys handy from Coinbase and run Trader.py. First time users will be prompted for their username, then their API keys, and then prompted for a password. The code will ask you for some user preferences: 
 
@@ -57,19 +41,37 @@ Download, run Oracle.py once to start and then set up Oracle.py to run once an h
 
 After that, everything should take off. As a side note, to elaborate on number 6 above, if you do decide to use credit or debit card transactions (which, as of August 1 of 2016, can be instant transactions)...  then we have no way of verifying your account balance through Coinbase. The code could easily make a buy action (or many) that maxes your credit card, or drains your bank account. Please use the USD wallet.
 
-# Different Operating Systems
+
+# 4. SSH Keys and DigitalOcean
+
+I recommend running this on some sort of cloud based service (AWS or DigitalOcean or something). I spun up a droplet using instructions [from here](https://www.digitalocean.com/community/tutorials/how-to-create-your-first-digitalocean-droplet-virtual-server), generated my SSH keys using
+
+        ssh-keygen -t rsa
+
+I usually use the default folder, and I generate passphrases using LastPass. To get my SSH keys I use
+
+        cat ~/.ssh/id_rsa.pub
+
+which I then copy-paste into the DigitalOcean SSH key prompt. We use
+
+        ssh root@ip.address.here
+        
+to ssh into the droplet as root, and then we create a new user, add it to the sudo group, and generate ssh keys for that new user. Then rather than loggin in as root, log in as the local user.
+
+
+# 5. Different Operating Systems
 
 I've had a surprising amount of difficulty getting this going in different settings. I've tried to summarize the methods that have worked well below:
 
-## Running with Windows 10
+## 5a. Running with Windows 10
 
 This has entirely been developed in Ubuntu (precise and trusty usually) so I have no idea how well it will port to windows. I also am under the impression that numpy and scipy are both a pain in the ass with Windows. So, I dunno, dual boot yourself some Ubuntu or use some Crouton for this, or use Virtualbox in windows to run Ubuntu (see below).
 
-## With Virtualbox
+## 5b. With Virtualbox
 
 Head over to Ubuntu.com and grab yourself an Ubuntu 14.04 iso file and use Virtualbox to set up a virtual ubuntu box. Install the dependencies below, and then install guest additions. You can use the command line to do so with `sudo apt-get install virtualbox-guest-dkms` but this didn't work very well for me to get bidirectional clipboard and resolution resizing working. I had to (in the virtualbox window) click on Devices, then Insert Guest Additions CD Image. After installing, rebooting virtualbox got the clipboard and resolution working.  I then installed all the dependencies below, cloned this git repository, added Oracle to crontab, ran it once, and then started running Trader.py
 
-## Running with Crouton
+## 5c. Running with Crouton
 
 ### Installing crouton:
 
@@ -84,7 +86,7 @@ Make sure you are up to date with this:
         
 Despite that it seems like trusty tahr works better on my chromebook than precise pangolin, and xfce is the only version I've gotten to work so far, it's still quite janky/iffy using ctrl-alt-shift-forward/back to switch operating systems. 
 
-### Running Oracle.py with cron 
+### Running Oracle.py with cron in crouton
 
 Now to get cron working.... According to [dnschneid](https://github.com/dnschneid/crouton/wiki/Setting-Up-Cron-Job) crouton needs some massaging to run cron. To get cron working with crouton, I use 
 
@@ -99,7 +101,7 @@ and add the following line to the bottom of my crontab file:
         1 * * * * root /usr/bin/python /path/to/scripts/Oracle.py
         
 
-# Mechanics
+# 6. Mechanics
 
 This section describes how the code actually works. It's broken into a few subsections: password management (because there's no good reason to save your API keys as a plaintext file on a computer or, worse, on a server), fundamental dynamics (to describe exactly what's going on with the price), trend-based triggers (to describe how we compute all this), and bookkeeping.
 
@@ -137,6 +139,6 @@ As we issue actions to Coinbase and then receive confirmation of those actions, 
 
 If an action remains in the `Buy_Q` or the `Sell_Q` for a long time, this means that the price hasn't allowed this action to be paired. This corresponds to buying high before a price drop, or selling low before a price rise. These are bad moves that we need to remember, historically, so that we can try to recover from epic bad decisions from the past. Hence, we need our current `Buy_Q` and `Sell_Q` to also be written to file after each time they are updated, say `Buy_Q.csv` and `Sell_Q.csv`. This way, each time we load the program, we pick up where we left off.
 
-# Future implementations 
+# 7. Future implementations 
 
-We will have more complicated buy/sell strategies. After we have some probabilities estimated, we can start using Kelly betting. Eventually, I would like to develop some neural networks that are trained to respond to time series. I also want to use a better-than-hourly historical pricing scheme, possibly pulling and logging price every minute or every 15 minutes or whatever. I also want to get this thing running on Digital Ocean so that I don't have to worry about accidentally kicking a power cord and cutting my local computer off.
+Super long-term, we wwould like to develop some neural networks that are trained to respond to the time series. More short-term and attainable goals include (in no particular order) (i) more complicated buy/sell strategies (maybe), (ii) more statistically sophisticated time series methods of analysis (we're thinking to BLUE this), (iii) we want the code to send text messages or e-mails when actions are completed, (iv) amounts to buy/sell will be modified once we have some probabilities estimated so we can start using Kelly betting, and (v) better-than-hourly historical pricing scheme, possibly pulling and logging price every minute or every 15 minutes or whatever and storing it into a database.
