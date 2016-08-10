@@ -14,7 +14,7 @@ What's worked for me is to use the following:
         sudo apt-get install git python-scipy python-pip libffi-dev libssl-dev
         sudo pip install pyopenssl ndg-httpsclient pyasn1 coinbase pbkdf2
 
-Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
+Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above. Also, unless you plan on use `nohup` to run the code continuously, you will also want to include a `sudo apt-get install screen` (although most distributions of ubuntu already have `screen` installed). 
 
 # 2. Coinbase API keys
 
