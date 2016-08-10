@@ -36,7 +36,8 @@ Go to Coinbase, log in, click on Settings on the sidebar on the left. Go to the 
 
 After they are created, you will run the code below (see the next section) and copy-paste them into the terminal. That is the ONLY time you will have the API keys available for viewing or stealing, and immediately after they are pasted into the terminal, they will be encrypted and stored.
 
-# 3. To run the first time:
+# 3. To run
+## 3a. The first time:
 
 Download, run Oracle.py with `python Oracle.py` once to start and then set up `Oracle.py` to run once an hour using `cron` or Windows Task Manager (see below). Start a new screen by typing `screen` (this will allow us to keep `Trader.py` running continuously after we exit the terminal... see the end of this section for information on that). Run Trader.py with `python Trader.py`.
 
@@ -49,7 +50,19 @@ First time users will be prompted for their username, then their API keys, and t
 5. Of all the bitcoin in your selected account/wallet, how much do you want to be actively trading with? We can verify this account balance with Coinbase, so you can be a little sloppy with this number without getting totally fucked.  (Suggestion: don't trade with all the bitcoin in your trading wallet)
 6. Of your USD funds from your payment method, how much are you willing to gamble/flush down the toilet with this code? We cannot verify this number unless you use the USD wallet (and so we don't verify at all in case a user wants to use a bank account or a credit card instead of the USD wallet), so we recommend very carefully answering. If you provide an answer that will cause you to overdraft or get your credit card declined, that's your problem, not ours. This is why we prefer using the Coinbase USD Wallet if possible. (Suggestion: don't trade with all the USD in your USD wallet).
 
-After that, everything should take off, so you can use `ctrl+a, d` to detach from the screen, keeping `Trader.py` running. You can close your terminal with `exit` as usual at this point; to return to `Trader.py`, simply type `screen -r` and you can see the code output. Use `ctrl+a, d` to detach from the screen again once you've done this to keep `Trader.py` running.
+After that, everything should take off, so you can use `ctrl+a, d` to detach from the screen, keeping `Trader.py` running. You can close your terminal with `exit` as usual at this point.
+
+## 3b. Running after the first time
+
+If `Trader.py` is still running in the background (since you used `screen`, above), return to `Trader.py` with `screen -r` and you can see the code output. Use `ctrl+a, d` to detach from the screen again once you've done this to keep `Trader.py` running.
+
+What if `Trader.py` is not still running? Let's say it crashed, or let's say you forced it to end on accident, or let's say you forced it to end on purpose to modify the code a bit. Simply use `python Trader.py` again, login with your username and password again, and it should pick up where it left off... assuming you have not deleted any of the files in the folders `data`, `users`, or `key_manager`.  
+
+Speaking of the files in the folders `data`, `users`, or `key_manager`, it may be in your best interest to backup these files occasionally. This way, if the code crashes or some of these files are accidentally deleted (I'm looking at you, Tyrone, get your shit together), you can use your backups to pick up where you left off.
+
+## 3c. Running with multiple users
+
+Despite that we have a username and password login process, we currently do *not* have the capabilities to support multiple users. This is an issue that will be fixed soon, hopefully. So, don't try to add a new user.
 
 As a side note, to elaborate on number 6 above, if you do decide to use credit or debit card transactions (which, as of August 1 of 2016, can be instant transactions)...  then we have no way of verifying your account balance through Coinbase. The code could easily make a buy action (or many) that maxes your credit card, or drains your bank account. Please use the USD wallet.
 
