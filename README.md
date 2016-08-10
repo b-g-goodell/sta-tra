@@ -1,6 +1,10 @@
 # sta-tra
 Use basic statistical tools to execute buys/sells using Coinbase API. First install dependencies (section 1), get yourself some API keys from coinbase (section 2), check out the 'To Run' instructions (section 3). If you want to ssh into DigitalOcean to run on the cloud, see section 4, and if you are trying to get stuff running on various operating systems, check out our tips in section 5. If you want to know the mathematical particulars of how decisions are made, check out section 6. Goals for the future are in section 7.
 
+# 0. A word of warning
+
+If you receive an insecure platform warning while running this software, please take a screen shot and send it to us, and STOP running the code on your machine. These warnings are associated with vulnerabilities to Man-in-the-Middle attacks, and if they pop up it is not a good idea to continue with the code until the issue is resolved. To be clear, the warning does not mean you have been attacked. It means that there is a bug in the code that could allow for an attack. So keep calm, take a screenshot, send it to us, and suspend your trading activity with sta-tra until it's resolved.
+
 # 1. Dependencies
 
 We use the coinbase python library, the json library, the requests library, and scipy.
