@@ -43,6 +43,7 @@ class API_Key_Manager(object):
         which will register the new user.
         """
         success = None
+        print "Welcome to sta-tra. In a moment, we will have you log in with a username and a password. You should definitely not use the same login information as your Coinbase account... make up a new username."
         if username is None:
             username = raw_input("user:\t")
         self.this_user['username'] = username
@@ -160,10 +161,10 @@ class API_Key_Manager(object):
         black_box = AESCrypt()
         if username is not None:
             if api_keys[0] is None and api_keys[1] is None:
-                print "Okay, let's encrypt some API keys which come in pairs."
+                print "Okay, let's encrypt some API keys, which come in pairs."
                 self.this_user['api_keys'] = []
-                self.this_user['api_keys'].append(raw_input("What's the first API key?\t"))
-                self.this_user['api_keys'].append(raw_input("What's the second API key?\t"))
+                self.this_user['api_keys'].append(raw_input("What's the first API key? Coinbase lists this as the *API KEY*: \t"))
+                self.this_user['api_keys'].append(raw_input("What's the second API key? Coinbase lists this as the *API Secret*: \t"))
             else:
                 self.this_user['api_keys'] = [api_keys[0], api_keys[1]]
 
