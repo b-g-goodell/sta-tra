@@ -68,7 +68,7 @@ class Trader(object):
                 quoted_sell_price  = float(self.wallet.get_sell_price().amount)
             except:
                 print "Something went wrong pulling current price. Proceeding anyway."
-                continue
+                #continue
 
             # Coinbase API v2 allegedly reports your price after 1% fees
             effective_buy_price = float(quoted_buy_price)#*1.01 
