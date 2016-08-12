@@ -1,5 +1,13 @@
 # sta-tra
-Use basic statistical tools to execute buys/sells using Coinbase API. First install dependencies (section 1), get yourself some API keys from coinbase (section 2), check out the 'To Run' instructions (section 3). If you want to ssh into DigitalOcean to run on the cloud, see section 4, and if you are trying to get stuff running on various operating systems, check out our tips in section 5. If you want to know the mathematical particulars of how decisions are made, check out section 6. Goals for the future are in section 7.
+Use basic statistical tools to execute buys/sells using Coinbase API. In section zero, there is a brief disclaimer (we make no claims regarding robustness, security, reliability, or profitability) and a brief word of warning (if you see this warning, please drop everything and contact us!) All users should be aware of this warning, although it probably won't affect any given user. 
+
+In section 1, install dependencies. In section 2, retrieve your API keys from coinbase, check out the 'To Run' instructions (section 3). If you want to ssh into DigitalOcean to run on the cloud, see section 4, and if you are trying to get stuff running on various operating systems, check out our tips in section 5. If you want to know the mathematical particulars of how decisions are made, check out section 6. Goals for the future are in section 7.
+
+# 0. A word of warning
+
+First, a liability disclaimer. This is the author speaking in first person instead of the royal "we" used throughout the remainder of the document, because this is personal, yo. This software is for novelty use only. I am not a professional programmer, I am a hobbyist, although I have been programming for a long time; so if you lose tens of thousands of dollars, or even just a single month's rent, because you cloned a random amateur author's repo from github, your problems in life include poor decision making skills for which I am not responsible. I make no claims about the robustness of this code nor the profitability of this code. This is a fun pet project for myself and for my friends, all of whom I know would never invest more than they could lose; this is NOT a professional financial institution's trading software. I would be delighted if people started using it, and I would be even more delighted if people started making money from it, but as the primary contributor, I am making NO claims about this code's reliability, robustness, profitability, or security. After all, you never know what mistakes you've made until they've already come crashing down on your head, and I'm a grad student, I'm not a fiduciary.  Furthermore, even creating a pair of API keys on Coinbase is considered a security risk, so, please, consider this software to be novelty only.
+
+Second, a **security notice** so please read! If you receive an insecure platform warning while running this software, please take a screen shot and send it to us, and STOP running the code on your machine. These warnings are associated with vulnerabilities to Man-in-the-Middle attacks, and if they pop up it is not a good idea to continue with the code until the issue is resolved. To be clear, the warning does not mean you have been attacked. It means that there is a bug in the code that could allow for an attack. So keep calm, take a screenshot, send it to us, and suspend your trading activity with sta-tra until it's resolved.
 
 # 1. Dependencies
 
@@ -10,7 +18,7 @@ What's worked for me is to use the following:
         sudo apt-get install git python-scipy python-pip libffi-dev libssl-dev
         sudo pip install pyopenssl ndg-httpsclient pyasn1 coinbase pbkdf2
 
-Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above.
+Sometimes pip gives me trouble and it appears to be resolved by adding `-H` to the pip command above. Also, unless you plan on use `nohup` to run the code continuously, you will also want to include a `sudo apt-get install screen` (although most distributions of ubuntu already have `screen` installed). 
 
 # 2. Coinbase API keys
 
@@ -28,18 +36,36 @@ Go to Coinbase, log in, click on Settings on the sidebar on the left. Go to the 
 
 After they are created, you will run the code below (see the next section) and copy-paste them into the terminal. That is the ONLY time you will have the API keys available for viewing or stealing, and immediately after they are pasted into the terminal, they will be encrypted and stored.
 
-# 3. To run:
+# 3. To run
+## 3a. The first time:
 
-Download, run Oracle.py once to start and then set up Oracle.py to run once an hour using cron or Windows Task Manager (see below). Then get your API keys handy from Coinbase and run Trader.py. First time users will be prompted for their username, then their API keys, and then prompted for a password. The code will ask you for some user preferences: 
+Download, run Oracle.py with `python Oracle.py` once to start and then set up `Oracle.py` to run once an hour using `cron` or Windows Task Manager (see below). Start a new screen by typing `screen` (this will allow us to keep `Trader.py` running continuously after we exit the terminal... see the end of this section for information on that). Run Trader.py with `python Trader.py`.
 
-1. What percentage change in bitcoin price should trigger an action? For example, if you want to rebalance if the price moves by more than 3%, then your input should be 0.03. I usually use 0.05; in order to clear fees, we recommend values above 0.01.
-2. What confidence level do we want to use when drawing our trendlines? For example, if you want 99% confidence intervals, then your input should be 0.99. I usually use 0.99, but this is largely a cosmetic choice from our experiences.
+First time users will be prompted for their username, then their API keys, and then prompted for a password. The code will ask you for some user preferences: 
+
+1. What percentage change in bitcoin price should trigger an action? For example, if you want to rebalance if the price moves by more than 3%, then your input should be 0.03. I usually use 0.025; in order to clear fees, you must use values above 0.0201. Note that although this number must be above 0.0201, it can be as large as you want: setting this number to 3.0 will require the price to increase to triple its present value or reduce to 1/3 of its present value before we take any actions, for example. (Suggested value: 0.025 or 0.05)
+2. What confidence level do we want to use when drawing our trendlines? For example, if you want 99% confidence intervals, then your input should be 0.99. I usually use 0.99, but this is largely a cosmetic choice from our experiences. Please note this number must be *strictly* between 0.0 and 1.0. Further note that teh closer the number is to 1.0, the wider your confidence interval will be. There is no real harm in choosing a small number like 0.25, but picking a very very large number like 0.999999999 runs the risk of throwing some numerical errors. (Suggested value: 0.99)
 3. Of all the bitcoin accounts/wallets that Coinbase has on file for you, which bitcoin account/wallet on Coinbase would you like to trade with? I have a separate bitcoin account/wallet set up on Coinbase specifically for trading.
 4. Of all the payment methods that Coinbase has on file for you, which payment method would you like to use? I strongly recommend that you use the USD Wallet in order to ensure "instant" transactions and to prevent overdraft fees from a bank if the code goes wonky. Besides, since the code works continuously (every few seconds, actually), anything less than instant transactions is a recipe for disaster, so ... just use the USD wallet.
-5. Of all the bitcoin in your selected account/wallet, how much do you want to be actively trading with? We can verify this account balance with Coinbase, so you can be a little sloppy with this number without getting totally fucked.
-6. Of your USD funds from your payment method, how much are you willing to gamble/flush down the toilet with this code? We cannot verify this number at all, so we recommend very carefully answering. If you provide an answer that will cause you to overdraft or get your credit card declined, that's your problem, not ours. This is why we prefer using the Coinbase USD Wallet if possible.
+5. Of all the bitcoin in your selected account/wallet, how much do you want to be actively trading with? We can verify this account balance with Coinbase, so you can be a little sloppy with this number without getting totally fucked.  (Suggestion: don't trade with all the bitcoin in your trading wallet)
+6. Of your USD funds from your payment method, how much are you willing to gamble/flush down the toilet with this code? We cannot verify this number unless you use the USD wallet (and so we don't verify at all in case a user wants to use a bank account or a credit card instead of the USD wallet), so we recommend very carefully answering. If you provide an answer that will cause you to overdraft or get your credit card declined, that's your problem, not ours. This is why we prefer using the Coinbase USD Wallet if possible. (Suggestion: don't trade with all the USD in your USD wallet).
 
-After that, everything should take off. As a side note, to elaborate on number 6 above, if you do decide to use credit or debit card transactions (which, as of August 1 of 2016, can be instant transactions)...  then we have no way of verifying your account balance through Coinbase. The code could easily make a buy action (or many) that maxes your credit card, or drains your bank account. Please use the USD wallet.
+After that, everything should take off, so you can use `ctrl+a, d` to detach from the screen, keeping `Trader.py` running. You can close your terminal with `exit` as usual at this point.
+
+## 3b. Running after the first time
+
+If `Trader.py` is still running in the background (since you used `screen`, above), return to `Trader.py` with `screen -r` and you can see the code output. Use `ctrl+a, d` to detach from the screen again once you've done this to keep `Trader.py` running.
+
+What if `Trader.py` is not still running? Let's say it crashed, or let's say you forced it to end on accident, or let's say you forced it to end on purpose to modify the code a bit. Simply use `python Trader.py` again, login with your username and password again, and it should pick up where it left off... assuming you have not deleted any of the files in the folders `data`, `users`, or `key_manager`.  
+
+Speaking of the files in the folders `data`, `users`, or `key_manager`, it may be in your best interest to backup these files occasionally. This way, if the code crashes or some of these files are accidentally deleted (I'm looking at you, Tyrone, get your shit together), you can use your backups to pick up where you left off.
+
+## 3c. Running with multiple users
+
+Despite that we have a username and password login process, we currently do *not* have the capabilities to support multiple users. This is an issue that will be fixed soon, hopefully. So, don't try to add a new user.
+
+As a side note, to elaborate on number 6 above, if you do decide to use credit or debit card transactions (which, as of August 1 of 2016, can be instant transactions)...  then we have no way of verifying your account balance through Coinbase. The code could easily make a buy action (or many) that maxes your credit card, or drains your bank account. Please use the USD wallet.
+
 
 
 # 4. SSH Keys and DigitalOcean
