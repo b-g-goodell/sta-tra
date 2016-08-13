@@ -154,10 +154,13 @@ class Trader(object):
         assert self.wallet is not None
 
         accounts = self.wallet.get_accounts().data
+        #print "We have opened self.wallet.get_accounts().data, which has type(accounts)= ", type(accounts)
         commodity_account_list = []
         names = []
         for account in accounts:
-            if account.currency=="BTC":
+            #print "We have an account here... which has type(account) = ", type(account)
+            #print "And we have account = \n", account
+            if account.type=="wallet":
                 commodity_account_list.append(account)
                 names.append(account.name)
         print "Account Number: " + 5*" " + "Account Name:"
@@ -168,7 +171,7 @@ class Trader(object):
             print "\n"
             idx = int(raw_input("Which (account number) of these would you like to trade with?    "))
             print "\n"
-        self.user_preferences['commodity_acct'] = accounts[idx]
+        self.user_preferences['commodity_acct'] = copy.deepcopy(commodity_account_list[idx])
 
         print "============"
 
@@ -178,7 +181,9 @@ class Trader(object):
         currency_account_list = []
         names = []
         for method in payment_methods:
-            if method.currency == "USD":
+            #print "We have a payment method here with type(method) =", type(method)
+            #print "And we have method = \n", method
+            if method.allow_buy == "true" and method.allow_sell == "true":
                 currency_account_list.append(method)
                 names.append(method.name)
         print "Payment Method Number " + 5*" " + "Payment Method Name:"
@@ -190,7 +195,7 @@ class Trader(object):
             print "\n"
             idx = int(raw_input("Which (number) payment method of these would you like to trade with?  "))
             print "\n"
-        self.user_preferences['currency_acct'] = currency_account_list[idx]
+        self.user_preferences['currency_acct'] = copy.deepcopy(currency_account_list[idx])
         print "============"
         print "\n Great, accounts chosen. Refreshing data before beginning. \n"
 
