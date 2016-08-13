@@ -3,6 +3,7 @@ import time
 import datetime
 import math
 import os
+import copy
 from collections import deque
 from coinbase.wallet.client import Client
 from API_Key_Manager import API_Key_Manager
@@ -183,7 +184,8 @@ class Trader(object):
         for method in payment_methods:
             #print "We have a payment method here with type(method) =", type(method)
             #print "And we have method = \n", method
-            if method.allow_buy == "true" and method.allow_sell == "true":
+            #print method.name, "==========\n", method, "====================\n", method.allow_buy, "==========================================\n\n"
+            if method.allow_buy and method.allow_sell:
                 currency_account_list.append(method)
                 names.append(method.name)
         print "Payment Method Number " + 5*" " + "Payment Method Name:"
@@ -231,6 +233,7 @@ class Trader(object):
                 br_returned = True
             except AssertionError:
                 print "Error! The bitcoin balance you are attempting to trade with is greater than your current bitcoin balance. Please try again."
+                br_returned = False
                 continue
         self.user_preferences['commodity_bankroll'] = br
 
