@@ -20,7 +20,8 @@ Assuming you already have linux going, but have no dependencies:
 11. After logging into Coinbase, click on settings (on the lefthand bar)
 12. Inside settings, click on the tab `API Access`
 13. Click on the `+ API Key` button at the top
-14. Create a new API key with the following permissions, this will give you an API Key and an API Secret. You may consider adding a restricted IP to your DigitalOcean static IP address, too, for an added layer of esecurity
+14. Create a new API key with the following permissions, this will give you an API Key and an API Secret. You may consider adding a restricted IP to your DigitalOcean static IP address, too, for an added layer of security
+
         wallet:accounts:read 
         wallet:accounts:update 
         wallet:buys:create 
