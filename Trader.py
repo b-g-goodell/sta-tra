@@ -142,11 +142,15 @@ class Trader(object):
         print "Please answer the following questions before we proceed: "
         print "=============="
 
+        experienced_user = False
         temp_trigger = float(raw_input("This code works by taking action after the price changes a certain percentage. What percent would you like as a trigger? Please enter a number larger than 0.0201. For example, if you want to take action every time the price changes by 5%, you would enter 0.05.  (Warning: please select a value greater than 0.0201 to guarantee actions taken are not unprofitable)  "))
-        while temp_trigger < (1.01*1.01 - 1.0):
-            temp_trigger = float(raw_input("Sorry, you selected a value that is less than the critical value of 0.0201, which means that in some rare cases your choice could lead to unprofitable actions. Please re-enter your preferred percentage trigger as a number larger than 0.0201. May we recommend 0.025?  "))
+        while temp_trigger < (1.01*1.01 - 1.0) and not experienced_user:
+            is_exp = float(raw_input("WARNING: you selected a value that is less than the critical value of 0.0201, which means that in some rare cases your choice could lead to unprofitable actions. Did you mean to do this, say for testing purposes? (Y/N) "))
+            if 'y' in is_exp:
+                experienced_user = True
+            else:
+                temp_trigger = float(raw_input("Okay, if you didn't mean to select a number less than the critical value of 0.0201, what would you like your percent trigger to be? Please enter a number larger than 0.0201. For example, if you want to take action every time the price changes by 5%, you would enter 0.05. "))
         self.user_preferences['change_trigger'] = temp_trigger
-        #self.user_preferences['change_trigger'] = float(raw_input("This code works by taking action after the price changes a certain percentage. What percent would you like as a trigger? Please enter a number between 0.0 and 1.0. For example, if you want to take action every time the price changes by 5%, you would enter 0.05.  "))
 
         temp_percentile = float(raw_input("This code also works using % confidence intervals: the higher your desired % confidence, the fewer actions you will take. Please enter a number strictly between 0.0 and 1.0 signifiying your % confidence (suggested: 0.99)  "))
         while temp_percentile >= 1.0 or temp_percentile <= 0.0:
