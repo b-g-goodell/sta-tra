@@ -40,6 +40,9 @@ Assuming you already have linux going, but have no dependencies:
 20. Hit `ctrl+a, d` to detach from this screen. You can now leave the terminal and the code will run in the background.
 21. To come back later to see how the code is doing, open a new terminal and type `screen -r`. Exit using `ctrl+a, d` as above.
 
+If you have accidentally chosen the wrong payment method or wallet, delete the folders `/data`, `/key_manager`, and `/users`, run `Oracle.py` to ensure folders and appropriate files exist, then run `python Trader.py` to start over at step 17 again. Unfortunately, there's no good way to fix that currently implemented.
+
+If you want to mess around with your current settings, like your percent change threshold or your confidence interval, use `ctrl+c` to bail from the current run, then edit the file `/users/username.pref` and change the appropriate values, and lastly, run `Trader.py` again. You don't need to run Oracle first in this case.
 
 
 
@@ -110,19 +113,9 @@ As a side note, to elaborate on number 6 above, if you do decide to use credit o
 
 # 4. SSH Keys and DigitalOcean
 
-I recommend running this on some sort of cloud based service (AWS or DigitalOcean or something). I spun up a droplet using instructions [from here](https://www.digitalocean.com/community/tutorials/how-to-create-your-first-digitalocean-droplet-virtual-server), generated my SSH keys using
+I recommend running this on some sort of cloud based service (AWS or DigitalOcean or something). Generate your SSH keys (with Windows, use the instructions [here](https://docs.joyent.com/public-cloud/getting-started/ssh-keys/generating-an-ssh-key-manually/manually-generating-your-ssh-key-in-windows) or in Linux using `ssh-keygen -t rsa` (hit enter for default location) and then copying the public key using `cat ~/.ssh/id_rsa.pub`. Then spin up a droplet on DigitalOcean using instructions [from here](https://www.digitalocean.com/community/tutorials/how-to-create-your-first-digitalocean-droplet-virtual-server), which will ask for your public SSH key. 
 
-        ssh-keygen -t rsa
-
-I usually use the default folder, and I generate passphrases using LastPass. To get my SSH keys I use
-
-        cat ~/.ssh/id_rsa.pub
-
-which I then copy-paste into the DigitalOcean SSH key prompt. We use
-
-        ssh root@ip.address.here
-        
-to ssh into the droplet as root, and then we create a new user, add it to the sudo group, and generate ssh keys for that new user. Then rather than loggin in as root, log in as the local user.
+After that, use `ssh root@ip.address.here` to ssh into the droplet as root. There's nothing stopping you from stopping here and simply proceeding, but doing anything as root unless it's absolutely necessary is often considered stupid. We suggest [creating a new user](https://www.digitalocean.com/community/tutorials/how-to-add-delete-and-grant-sudo-privileges-to-users-on-a-debian-vps) and adding it to the sudo group. Rather than logging in as root, log in as the local user with sudo capabilities.
 
 
 # 5. Different Operating Systems
