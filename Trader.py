@@ -418,15 +418,16 @@ class Trader(object):
         print "Executing buy!"
         
         # First let's compute the amount in USD we wish to use in our buy order.
-        usd_amt = 0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['currency_bankroll']
+        usd_amt = max(5.0,0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['currency_bankroll'])
         
         # Let's verify that our supposed buy order is non-trivial
         btc_amt = usd_amt/quoted_price
         print "Details on the incoming buy... USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
         try:
-            assert usd_amt > 1.0
+            assert usd_amt > 5.0
         except AssertionError:
             print "Error, tried to buy only " + str(usd_amt) + " in USD, which is " + str(btc_amt) + " in BTC... try a larger bankroll. Continuing..."
+
         
         # Let's issue the buy order, uncommitted...
         b = self.wallet.buy( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
@@ -473,13 +474,13 @@ class Trader(object):
         print "Executing sell!"
         
         # First let's compute the amount in USD we wish to use in our sell order.
-        btc_amt = 0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['commodity_bankroll']
+        btc_amt = max(0.005,0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['commodity_bankroll'])
         
         # Let's verify that our supposed sell order is non-trivial
         usd_amt = btc_amt*quoted_price
         print "Details on the incoming sell... USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
         try:
-            assert usd_amt > 1.0
+            assert btc_amt > 0.005
         except AssertionError:
             print "Error, tried to sell only " + str(usd_amt) + " in USD, which is " + str(btc_amt) + " in BTC... try a larger bankroll. Continuing..."
         
