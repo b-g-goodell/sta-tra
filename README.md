@@ -3,6 +3,46 @@ Use basic statistical tools to execute buys/sells using Coinbase API. In section
 
 In section 1, install dependencies. In section 2, retrieve your API keys from coinbase, check out the 'To Run' instructions (section 3). If you want to ssh into DigitalOcean to run on the cloud, see section 4, and if you are trying to get stuff running on various operating systems, check out our tips in section 5. If you want to know the mathematical particulars of how decisions are made, check out section 6. Goals for the future are in section 7.
 
+# Quick start for Linux users
+
+Assuming you already have linux going, but have no dependencies:
+
+1. Hit `ctrl+alt+t` to open terminal
+2. Type `sudo apt-get install git python-scipy python-pip libffi-dev libssl-dev screen` and agree to all installations.
+3. Type `sudo pip install pyopenssl ndg-httpsclient pyasn1 coinbase pbkdf2` and agree to all installations.
+4. Type `git clone https://github.com/b-g-goodell/sta-tra`
+5. Type `cd sta-tra`
+6. Type `crontab -e` and this will open a terminal text editor for crontab.
+7. Use your arrow keys to go to the bottom of the file and add the line `3 * * * * root /usr/bin/python /path/to/scripts/Oracle.py` to the bottom of the file. 
+8. Type `ctrl-x` to exit. It will prompt you about the filename, so just hit enter. When it asks if you are sure you want to save, type `y` for yes.
+9. Type `python Oracle.py` for good measure.
+10. Keep this terminal open for now, and open a web browser, and go over to Coinbase.
+11. After logging into Coinbase, click on settings (on the lefthand bar)
+12. Inside settings, click on the tab `API Access`
+13. Click on the `+ API Key` button at the top
+14. Create a new API key with the following permissions, this will give you an API Key and an API Secret.
+
+        wallet:accounts:read 
+        wallet:accounts:update 
+        wallet:buys:create 
+        wallet:buys:read 
+        wallet:payment-methods:read 
+        wallet:sells:create 
+        wallet:sells:read
+        
+15. Go back over to your terminal and type `screen`
+16. This will open a terminal-within-your terminal. Hit enter if there is an explanatory page.
+17. Type `python Trader.py`
+16. Pick a username and password, enter your API Key and your API Secret.
+17. Pick a percent-change-trigger. If you want to rebalance your portfolio when the price changes by 5%, pick 0.05, for example.
+18. Pick a confidence level for your confidence intervals. I usually use 0.995 for 99.5% confidence.
+19. Things should be running now.
+20. Hit `ctrl+a, d` to detach from this screen. You can now leave the terminal and the code will run in the background.
+21. To come back later to see how the code is doing, open a new terminal and type `screen -r`. Exit using `ctrl+a, d` as above.
+
+
+
+
 # 0. A word of warning
 
 First, a liability disclaimer. This is the author speaking in first person instead of the royal "we" used throughout the remainder of the document, because this is personal, yo. This software is for novelty use only. I am not a professional programmer, I am a hobbyist, although I have been programming for a long time; so if you lose tens of thousands of dollars, or even just a single month's rent, because you cloned a random amateur author's repo from github, your problems in life include poor decision making skills for which I am not responsible. I make no claims about the robustness of this code nor the profitability of this code. This is a fun pet project for myself and for my friends, all of whom I know would never invest more than they could lose; this is NOT a professional financial institution's trading software. I would be delighted if people started using it, and I would be even more delighted if people started making money from it, but as the primary contributor, I am making NO claims about this code's reliability, robustness, profitability, or security. After all, you never know what mistakes you've made until they've already come crashing down on your head, and I'm a grad student, I'm not a fiduciary.  Furthermore, even creating a pair of API keys on Coinbase is considered a security risk, so, please, consider this software to be novelty only.
