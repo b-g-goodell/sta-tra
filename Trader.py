@@ -511,7 +511,7 @@ class Trader(object):
 
         # Let's verify the price we got is close to our quoted price:
         result = False
-        while not result s is not None and actual_price is not None and math.abs(actual_price - quoted_price) < 0.5:
+        while not result and s is not None and actual_price is not None and math.abs(actual_price - quoted_price) < 0.5:
             try:
                 s = self.wallet.commit_sell(self.user_preferences['commodity_acct'].id, b.id)
                 result = True
