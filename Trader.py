@@ -414,129 +414,161 @@ class Trader(object):
             self.triggers['sell'] = sell_trigger_new
 
     def _make_buy(self, quoted_price):
-        """ This method issues a buy order and verifies it is correct."""
+        """ This method issues a buy order and verifies it is correct within half a percent of price."""
         print "Executing buy!"
         
         # First let's compute the amount in USD we wish to use in our buy order.
-        usd_amt = max(5.0,0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['currency_bankroll'])
+        usd_amt = 0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['currency_bankroll']
         
         # Let's verify that our supposed buy order is non-trivial
         btc_amt = usd_amt/quoted_price
         print "Details on the incoming buy... USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
         try:
-            assert usd_amt > 5.0
+            assert usd_amt >= 5.0
         except AssertionError:
-            print "Error, tried to buy only " + str(usd_amt) + " in USD, which is " + str(btc_amt) + " in BTC... try a larger bankroll. Continuing..."
-
+            print "Error, tried to sell only " + str(btc_amt) + " BTC, which is " + str(usd_amt) + " USD... try a larger bankroll. Continuing with a buy of five bucks..."
+            usd_amt = 5.0
+            btc_amt = usd_amt/quoted_price
         
         # Let's issue the buy order, uncommitted...
         b = None
-        while b is None:
+        count = 10
+        while b is None and count >= 0:
             try:
                 b = self.wallet.buy( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
+                #print b
             except ValueError:
                 b = None
-        
-        # Let's compute the price we got.
-        actual_price = None
-        try:
-            actual_price = float(float(b.total.amount)/float(b.amount.amount))
-        except:
-            print "Oops! Couldn't compute actual price! Continuing..."
-            
-        # Let's verify the price we got is close to our quoted price:
+                count = count - 1
+        print "Uncommitted buy order issued..."
         result = False
-        while not result and b is not None and actual_price is not None and math.fabs(actual_price - quoted_price) < 0.5:
-            try:
-                b = self.wallet.commit_buy(self.user_preferences['commodity_acct'].id, b.id)
-                result = True
-            except:
+        resulting_buy = None
+        if b is not None:            
+            # Let's compute the price we got.
+            actual_price = None
+            if float(b.amount.amount) == 0.0:
+                print "The amount in USD of the uncommitted buy is zero, which means we can't compute actual price. This is a critical error, so we are abandoning this buy attempt."
+            else:
+                actual_price = float(float(b.total.amount)/float(b.amount.amount))
+                ratio = (actual_price - quoted_price)/quoted_price*100.0
+                print "Tried to sell with quoted price ", quoted_price, " and issued an uncommitted sell with actual price", actual_price
+                print "This is a slippage of ", ratio, "%"
+                # Let's verify the price we got is close to our quoted price:
                 result = False
-
-
-        # If the buy went through, update our stuff!
-        if result:
-            self.user_preferences['commodity_bankroll'] += 0.999*float(b.amount.amount)
-            self.user_preferences['currency_bankroll'] -= float(b.total.amount)
-            resulting_buy = {}
-            resulting_buy['amount'] = float(b.amount.amount)
-            resulting_buy['cost_basis'] = float(b.total.amount)/float(b.amount.amount)
-            resulting_buy['created_at'] = b.created_at
-            resulting_buy['type'] = 'buy'
-            #print "Length of buy_Q:", len(self.buy_q)
-            self.buy_q.append(resulting_buy)
-            #print "Length of buy_Q: ", len(self.buy_q)
-            with open(self.log_filename, "a") as log_file:
-                for item in b:
-                    log_file.write(str(item) + ", " + str(b[item]) + "\n")
-                log_file.write("\n")
-        # If the buy did not go through, return a None object for resulting_buy
+                new_b = None
+                count = 10
+                while new_b is None and count >= 0 and math.fabs(ratio) < 0.75:
+                    try:
+                        new_b = self.wallet.commit_buy(self.user_preferences['commodity_acct'].id, b.id)
+                        result = True
+                        
+                    except ValueError:
+                        new_b = None
+                        count = count - 1
+                        result = False
+                # If the sell went through, update our stuff!
+                if result and new_b is not None:
+                    print "Buy order committed!"
+                    b = new_b
+                    self.user_preferences['commodity_bankroll'] += 0.999*float(b.amount.amount)
+                    self.user_preferences['currency_bankroll'] -= float(b.total.amount)
+                    resulting_buy = {}
+                    resulting_buy['amount'] = float(b.amount.amount)
+                    resulting_buy['cost_basis'] = float(b.total.amount)/float(b.amount.amount)
+                    resulting_buy['created_at'] = b.created_at
+                    resulting_buy['type'] = 'buy'
+                    #print "Length of buy_Q:", len(self.buy_q)
+                    self.buy_q.append(resulting_buy)
+                    with open(self.log_filename, "a") as log_file:
+                        for item in b:
+                            log_file.write(str(item) + ", " + str(b[item]) + "\n")
+                        log_file.write("\n")
+                else:
+                    print "Woops, tried to commit a buy order at least 10 times, and it didn't work! Guess we missed a window.../n========/n"
+                    print "Here is information on the uncommitted buy that didn't go through:/n==========/n"
+                    for key in b:
+                        print key, " : ", b[key]
         else:
-            resulting_buy = {}
+            print "Woops, tried to issue an uncommitted buy order at least 10 times, and it didn't work!" 
         return result, resulting_buy
         
     def _make_sell(self, quoted_price):
         """ This method issues a sell order and verifies it is correct."""
         print "Executing sell!"
         
-        # First let's compute the amount in USD we wish to use in our sell order.
-        btc_amt = max(0.005,0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['commodity_bankroll'])
-        
+        # First let's compute the amount in BTC we wish to use in our sell order.
+        btc_amt = 0.95*self.user_preferences['change_trigger']/(1.0+self.user_preferences['change_trigger'])*self.user_preferences['commodity_bankroll']
+
         # Let's verify that our supposed sell order is non-trivial
         usd_amt = btc_amt*quoted_price
         print "Details on the incoming sell... USD Amt: ", usd_amt, " BTC Amt: ", btc_amt, "\n"
         try:
-            assert btc_amt > 0.005
+            assert btc_amt >= 0.005
         except AssertionError:
-            print "Error, tried to sell only " + str(usd_amt) + " in USD, which is " + str(btc_amt) + " in BTC... try a larger bankroll. Continuing..."
-            # Let's verify that our supposed buy order is non-trivial
-            btc_amt = usd_amt / quoted_price
-
+            print "Error, tried to sell only " + str(btc_amt) + " BTC, which is " + str(usd_amt) + " USD... try a larger bankroll. Continuing with a sell of 0.005 bitcoin..."
+            btc_amt = 0.005
+            usd_amt = btc_amt*quoted_price
+        
         # Let's issue the sell order, uncommitted...
         s = None
-        while s is None:
+        count = 10
+        while s is None and count >= 0:
             try:
-                s = self.wallet.sell(self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false',
-                                     currency=self.user_preferences['currency_acct'].currency,
-                                     payment_method=self.user_preferences['currency_acct'].id)
+                s = self.wallet.sell( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
+                #print s
             except ValueError:
                 s = None
-
-        # Let's compute the price we got.
-        actual_price = None
-        try:
-            actual_price = float(float(s.total.amount) / float(s.amount.amount))
-        except:
-            print "Oops! Couldn't compute actual price! Continuing..."
-
-        # Let's verify the price we got is close to our quoted price:
+                count = count - 1
+        print "Uncommitted sell order issued..."
         result = False
-        while not result and s is not None and actual_price is not None and math.fabs(actual_price - quoted_price) < 0.5:
-            try:
-                s = self.wallet.commit_sell(self.user_preferences['commodity_acct'].id, b.id)
-                result = True
-            except:
+        resulting_sell = None
+        if s is not None:            
+            # Let's compute the price we got.
+            actual_price = None
+            if float(s.amount.amount) == 0.0:
+                print "The amount in USD of the uncommitted sell is zero, which means we can't compute actual price. This is a critical error, so we are abandoning this sell attempt."
+            else:
+                actual_price = float(float(s.total.amount)/float(s.amount.amount))
+                ratio = (actual_price - quoted_price)/quoted_price*100.0
+                print "Tried to sell with quoted price ", quoted_price, " and issued an uncommitted sell with actual price", actual_price
+                print "This is a ", ratio, "% difference in price."
+                # Let's verify the price we got is close to our quoted price:
                 result = False
-        
-        # If the sell went through, update our stuff!
-        if result:
-            self.user_preferences['commodity_bankroll'] += 0.999*float(s.amount.amount)
-            self.user_preferences['currency_bankroll'] -= float(s.total.amount)
-            resulting_sell = {}
-            resulting_sell['amount'] = float(s.amount.amount)
-            resulting_sell['cost_basis'] = float(s.total.amount)/float(s.amount.amount)
-            resulting_sell['created_at'] = s.created_at
-            resulting_sell['type'] = 'sell'
-            self.sell_q.append(resulting_sell)
-            with open(self.log_filename, "a") as log_file:
-                for item in s:
-                    log_file.write(str(item) + ", " + str(s[item]) + "\n")
-                log_file.write("\n")
-        # If the sell did not go through, return a None object for resulting_sell
+                new_s = None
+                count = 10
+                while new_s is None and count >= 0 and math.fabs(ratio) < 0.75:
+                    try:
+                        new_s = self.wallet.commit_sell(self.user_preferences['commodity_acct'].id, s.id)
+                        result = True
+                    except ValueError:
+                        new_s = None
+                        count = count - 1
+                        result = False
+                # If the sell went through, update our stuff!
+                if result and new_s is not None:
+                    s = new_s
+                    self.user_preferences['commodity_bankroll'] -= float(s.amount.amount)
+                    self.user_preferences['currency_bankroll'] += 0.999*float(s.total.amount)
+                    resulting_sell = {}
+                    resulting_sell['amount'] = float(s.amount.amount)
+                    resulting_sell['cost_basis'] = float(s.total.amount)/float(s.amount.amount)
+                    resulting_sell['created_at'] = s.created_at
+                    resulting_sell['type'] = 'sell'
+                    #print "Length of sell_Q:", len(self.sell_q)
+                    self.sell_q.append(resulting_sell)
+                    with open(self.log_filename, "a") as log_file:
+                        for item in s:
+                            log_file.write(str(item) + ", " + str(s[item]) + "\n")
+                        log_file.write("\n")
+                else:
+                    print "Woops, tried to commit a sell order at least 10 times, and it didn't work! Guess we missed a window.../n========/n"
+                    print "Here is information on the uncommitted sell that didn't go through:/n==========/n"
+                    for key in s:
+                        print key, " : ", s[key]
         else:
-            resulting_sell = {}
+            print "Woops, tried to issue an uncommitted sell order at least 10 times, and it didn't work!" 
         return result, resulting_sell
-        
+
     def _make_pairs(self):
         pair_q = deque()
         temp_buy_q = deque()
@@ -559,7 +591,7 @@ class Trader(object):
                     # this_sell into a temporary sell queue.
                     temp_sell_q.append(this_sell)
                 else:
-                    print "pair possible!"
+                    #print "pair possible!"
                     # In this case, a pair is possible. So we compute a
                     # change object, a buy object, and a sell object,
                     # and we put them into a pairs queue.
@@ -610,9 +642,9 @@ class Trader(object):
                     assert amt is not None
                     assert created_at is not None
                     change = [cost_basis, amt, created_at, change_type]
-                    print pair
+                    #print pair
                     pair.append(change)
-                    print pair
+                    #print pair
                     
                     #### Next we compute the pair object ####
                     buy_obj = [this_buy['cost_basis'], this_buy['amount'], this_buy['created_at']]
@@ -631,12 +663,12 @@ class Trader(object):
                         pair.append("Sell high buy low")
                         pair.append(sell_obj)
                         pair.append(buy_obj)
-                    print pair
+                    #print pair
                     pair_q.append(pair)
-                    print "\n======Pair queue so far=======\n"
-                    for p in pair_q:
-                        print p
-                    print "\n======End of pair queue=======\n"
+                    #print "\n======Pair queue so far=======\n"
+                    #for p in pair_q:
+                    #    print p
+                    #print "\n======End of pair queue=======\n"
                     
                     ####RECALL!####
                     # Format of pair is a list of lists:
@@ -699,10 +731,10 @@ class Trader(object):
             with open(self.pair_filename, "w") as pair_file:
                 for pair in pair_q:
                     data_to_write = ""
-                    data_to_write += pair[1] + ", "
-                    data_to_write += pair[2][0] + ", " + pair[2][1] + ", " + pair[2][2] + ", "
-                    data_to_write += pair[3][0] + ", " + pair[3][1] + ", " + pair[3][2] + ", "
-                    data_to_write += pair[0][0] + ", " + pair[0][1] + ", " + pair[0][2] + ", " + pair[0][3] + "\n"
+                    data_to_write += str(pair[1]) + ", "
+                    data_to_write += str(pair[2][0]) + ", " + str(pair[2][1]) + ", " + str(pair[2][2]) + ", "
+                    data_to_write += str(pair[3][0]) + ", " + str(pair[3][1]) + ", " + str(pair[3][2]) + ", "
+                    data_to_write += str(pair[0][0]) + ", " + str(pair[0][1]) + ", " + str(pair[0][2]) + ", " + str(pair[0][3]) + "\n"
                     pair_file.write(data_to_write)
         pass
 
