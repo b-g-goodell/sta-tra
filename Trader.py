@@ -430,7 +430,12 @@ class Trader(object):
 
         
         # Let's issue the buy order, uncommitted...
-        b = self.wallet.buy( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
+        b = None
+        while b is None:
+            try:
+                b = self.wallet.buy( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
+            except ValueError:
+                b = None
         
         # Let's compute the price we got.
         actual_price = None
@@ -441,13 +446,14 @@ class Trader(object):
             
         # Let's verify the price we got is close to our quoted price:
         result = False
-        if actual_price is not None and actual_price - quoted_price < 0.5:
+        while not result and b is not None and actual_price is not None and math.abs(actual_price - quoted_price) < 0.5:
             try:
                 b = self.wallet.commit_buy(self.user_preferences['commodity_acct'].id, b.id)
                 result = True
             except:
-                pass
-        
+                result = False
+
+
         # If the buy went through, update our stuff!
         if result:
             self.user_preferences['commodity_bankroll'] += 0.999*float(b.amount.amount)
@@ -483,27 +489,36 @@ class Trader(object):
             assert btc_amt > 0.005
         except AssertionError:
             print "Error, tried to sell only " + str(usd_amt) + " in USD, which is " + str(btc_amt) + " in BTC... try a larger bankroll. Continuing..."
-        
+            # Let's verify that our supposed buy order is non-trivial
+            btc_amt = usd_amt / quoted_price
+
         # Let's issue the sell order, uncommitted...
-        s = self.wallet.sell( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
-        
+        s = None
+        while s is None:
+            try:
+                s = self.wallet.sell(self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false',
+                                     currency=self.user_preferences['currency_acct'].currency,
+                                     payment_method=self.user_preferences['currency_acct'].id)
+            except ValueError:
+                s = None
+
         # Let's compute the price we got.
         actual_price = None
         try:
-            actual_price = float(float(s.total.amount)/float(s.amount.amount))
+            actual_price = float(float(s.total.amount) / float(s.amount.amount))
         except:
             print "Oops! Couldn't compute actual price! Continuing..."
-            
+
         # Let's verify the price we got is close to our quoted price:
         result = False
-        if actual_price is not None and actual_price - quoted_price > -0.5:
+        while not result s is not None and actual_price is not None and math.abs(actual_price - quoted_price) < 0.5:
             try:
-                s = self.wallet.commit_sell(self.user_preferences['commodity_acct'].id, s.id)
+                s = self.wallet.commit_sell(self.user_preferences['commodity_acct'].id, b.id)
                 result = True
             except:
-                pass
+                result = False
         
-        # If the buy went through, update our stuff!
+        # If the sell went through, update our stuff!
         if result:
             self.user_preferences['commodity_bankroll'] += 0.999*float(s.amount.amount)
             self.user_preferences['currency_bankroll'] -= float(s.total.amount)
