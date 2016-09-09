@@ -440,6 +440,7 @@ class Trader(object):
             except ValueError:
                 b = None
                 count = count - 1
+                time.sleep(0.2)
         print "Uncommitted buy order issued..."
         result = False
         resulting_buy = None
@@ -466,6 +467,7 @@ class Trader(object):
                         new_b = None
                         count = count - 1
                         result = False
+                        time.sleep(0.2)
                 # If the sell went through, update our stuff!
                 if result and new_b is not None:
                     print "Buy order committed!"
@@ -519,6 +521,7 @@ class Trader(object):
             except ValueError:
                 s = None
                 count = count - 1
+                time.sleep(0.2)
         print "Uncommitted sell order issued..."
         result = False
         resulting_sell = None
@@ -544,6 +547,7 @@ class Trader(object):
                         new_s = None
                         count = count - 1
                         result = False
+                        time.sleep(0.2)
                 # If the sell went through, update our stuff!
                 if result and new_s is not None:
                     s = new_s
