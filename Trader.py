@@ -732,7 +732,7 @@ class Trader(object):
         #   pair[2][2] = timestamp string with format "%Y-%m-%dT%H:%M:%SZ"
         # and similarly for pair[3], but opposite type of transaction
         if len(pair_q) > 0:
-            with open(self.pair_filename, "w") as pair_file:
+            with open(self.pair_filename, "a") as pair_file:
                 for pair in pair_q:
                     data_to_write = ""
                     data_to_write += str(pair[1]) + ", "
