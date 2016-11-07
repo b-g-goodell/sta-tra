@@ -432,7 +432,7 @@ class Trader(object):
         
         # Let's issue the buy order, uncommitted...
         b = None
-        count = 10
+        count = 7
         while b is None and count >= 0:
             try:
                 b = self.wallet.buy( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
@@ -457,7 +457,7 @@ class Trader(object):
                 # Let's verify the price we got is close to our quoted price:
                 result = False
                 new_b = None
-                count = 10
+                count = 7
                 while new_b is None and count >= 0 and math.fabs(ratio) < 0.75:
                     try:
                         new_b = self.wallet.commit_buy(self.user_preferences['commodity_acct'].id, b.id)
@@ -513,7 +513,7 @@ class Trader(object):
         
         # Let's issue the sell order, uncommitted...
         s = None
-        count = 10
+        count = 7
         while s is None and count >= 0:
             try:
                 s = self.wallet.sell( self.user_preferences['commodity_acct'].id, total=usd_amt, commit='false', currency = self.user_preferences['currency_acct'].currency, payment_method=self.user_preferences['currency_acct'].id)
@@ -538,7 +538,7 @@ class Trader(object):
                 # Let's verify the price we got is close to our quoted price:
                 result = False
                 new_s = None
-                count = 10
+                count = 7
                 while new_s is None and count >= 0 and math.fabs(ratio) < 0.75:
                     try:
                         new_s = self.wallet.commit_sell(self.user_preferences['commodity_acct'].id, s.id)
